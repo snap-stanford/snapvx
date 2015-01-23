@@ -1,0 +1,5 @@
+# Mac OS X
+.DS_Store
+
+# Compiler-generated files
+*.pyc
