@@ -12,7 +12,7 @@ import random
 # No constraints.
 # Expect optimal status with a value of 2.5
 # x1 = -0.5, x2 = -1
-def test1():
+def test1(testADMM=False):
     gvx = TUNGraphVX(2, 1)
     x1 = Variable()
     x2 = Variable()
@@ -27,9 +27,15 @@ def test1():
     objEdge = square(norm(n1Var - n2Var))
     gvx.AddEdge(1, 2, objEdge)
 
-    gvx.Solve()
+    gvx.Solve(useADMM=False)
     print gvx.status, gvx.value
     print x1.value, x2.value
+
+    # ADMM test to ensure that calculated values are the same.
+    if testADMM:
+        gvx.Solve(useADMM=True)
+        print 'ADMM Solution'
+        print gvx.GetNodeValue(1), gvx.GetNodeValue(2)
 
 
 # Larger test on a graph with 100 nodes and approximately 300 edges.
@@ -37,7 +43,7 @@ def test1():
 # Each node i: objective = ||x_i - a||^2 where a is randomly generated.
 # Each edge {i,j}: objective = ||x_i - x_j||^2
 # No constraints.
-def test2():
+def test2(testADMM=False):
     numpy.random.seed(1)
     random.seed(1)
     num_nodes = 100
@@ -65,21 +71,28 @@ def test2():
         gvx.AddEdge(nid1, nid2, objective)
 
     # Solve and print results for sanity check.
-    gvx.Solve()
+    testNIds = [5, 33, 41, 68, 97]
+    gvx.Solve(useADMM=False)
     print 'G(%d,%d)' % (gvx.GetNodes(), gvx.GetEdges()), gvx.status, gvx.value
-    for i in xrange(5):
-        nid = random.randint(1, num_nodes)
+    for nid in testNIds:
         x = gvx.GetNodeVariable(nid)
         print nid, x.value
 
+    # ADMM test to ensure that calculated values are the same.
+    if testADMM:
+        gvx.Solve(useADMM=True)
+        print 'ADMM Solution'
+        for nid in testNIds:
+            print nid, gvx.GetNodeValue(nid)
+
 
 def main():
-    print '** TEST 1 **'
-    test1()
-    print '** TEST 2**'
-    test2()
-    print '** Done **'
-
+    testADMM = True
+    print '*************** TEST 1 ***************'
+    test1(testADMM=testADMM)
+    print '*************** TEST 2 ***************'
+    test2(testADMM=testADMM)
+    print '**************** Done ****************'
 
 if __name__ == "__main__":
     main()
