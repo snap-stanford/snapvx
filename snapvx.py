@@ -2,7 +2,9 @@
 
 from snap import *
 from cvxpy import *
+from multiprocessing import *
 import numpy
+
 
 class TUNGraphVX(TUNGraph):
 
@@ -147,6 +149,68 @@ class TUNGraphVX(TUNGraph):
         return self.node_values[NId] if (NId in self.node_values) else None
 
 
+    def __SolveADMMDistributed(self):
+        print 'Solving with ADMM (DISTRIBUTED)'
+        (X_NID, X_OBJ, X_VAR, X_VAL, X_DEG) = range(5)
+        (Z_ETUP, Z_OBJ, Z_XIVAR, Z_XI, Z_ZIJ, Z_UIJ, Z_XJVAR, Z_XJ, Z_ZJI, Z_UJI) = range(10)
+        num_iterations = 50
+        rho = 1.0
+
+        edge_hash = {}
+        temp = numpy.array([])
+        var = Variable()
+        ei = TUNGraph.BegEI(self)
+        for i in xrange(TUNGraph.GetEdges(self)):
+            etup = self.__GetEdgeTup(ei.GetSrcNId(), ei.GetDstNId())
+            obj = self.edge_objectives[etup]
+            edge_hash[etup] = [etup, obj, var, temp, temp, temp, var, temp, temp, temp]
+            ei.Next()
+
+        edge_list = edge_hash.values()
+        node_list = []
+        ni = TUNGraph.BegNI(self)
+        for i in xrange(TUNGraph.GetNodes(self)):
+            nid = ni.GetId()
+            deg = ni.GetDeg()
+            obj = self.node_objectives[nid]
+            var = self.node_variables[nid]
+            varsize = var.size
+            x = numpy.zeros((varsize[0], varsize[1]))
+            entry = [nid, obj, var, x, deg]
+            for j in xrange(deg):
+                nbrid = ni.GetNbrNId(j)
+                indices = (Z_XIVAR, Z_XI, Z_ZIJ, Z_UIJ) if nid < nbrid else (Z_XJVAR, Z_XJ, Z_ZJI, Z_UJI)
+                etup = self.__GetEdgeTup(nid, nbrid)
+                z = numpy.zeros((varsize[0], varsize[1]))
+                u = numpy.zeros((varsize[0], varsize[1]))
+                entry.append(z)
+                entry.append(u)
+                edge_entry = edge_hash[etup]
+                edge_entry[indices[0]] = var
+                edge_entry[indices[1]] = x
+                edge_entry[indices[2]] = z
+                edge_entry[indices[3]] = u
+            node_list.append(entry)
+            ni.Next()
+
+        pool = Pool(8)
+        for i in xrange(num_iterations):
+            # Debugging information prints current iteration #.
+            print '..%d' % i
+            node_list = pool.map(ADMM_x, node_list)
+            edge_list = pool.map(ADMM_z, edge_list)
+            edge_list = pool.map(ADMM_u, edge_list)
+
+        for entry in node_list:
+            nid = entry[X_NID]
+            self.node_values[nid] = entry[X_VAL]
+        self.status = 'TODO'
+        self.value = 'TODO'
+
+    def distributedADMMTemp(self):
+        self.__SolveADMMDistributed()
+
+
     # Helper method to verify existence of an NId.
     def __VerifyNId(self, NId):
         if not TUNGraph.IsNode(self, NId):
@@ -219,3 +283,54 @@ class TUNGraphVX(TUNGraph):
         ETup = self.__GetEdgeTup(SrcNId, DstNId)
         self.__VerifyEdgeTup(ETup)
         return self.edge_constraints[ETup]
+
+
+def ADMM_x(entry):
+    # Temporary for now. TODO: Remove.
+    (X_NID, X_OBJ, X_VAR, X_VAL, X_DEG) = range(5)
+    rho = 1.0
+
+    var = entry[X_VAR]
+    norms = 0
+    for i in xrange(entry[X_DEG]):
+        z_index = 5 + (2 * i)
+        u_index = z_index + 1
+        zi = entry[z_index]
+        ui = entry[u_index]
+        norms += square(norm(var - zi + ui))
+    objective = entry[X_OBJ] + (rho / 2) * norms
+    objective = Minimize(objective)
+    problem = Problem(objective, [])
+    problem.solve()
+    entry[X_VAL][:] = var.value
+    return entry
+
+def ADMM_z(entry):
+    # Temporary for now. TODO: Remove.
+    (Z_ETUP, Z_OBJ, Z_XIVAR, Z_XI, Z_ZIJ, Z_UIJ, Z_XJVAR, Z_XJ, Z_ZJI, Z_UJI) = range(10)
+    rho = 1.0
+
+    objective = entry[Z_OBJ]
+    x_i = entry[Z_XI]
+    var_i = entry[Z_XIVAR]
+    u_ij = entry[Z_UIJ]
+    objective += (rho / 2) * square(norm(x_i - var_i + u_ij))
+    x_j = entry[Z_XJ]
+    var_j = entry[Z_XJVAR]
+    u_ji = entry[Z_UJI]
+    objective += (rho / 2) * square(norm(x_j - var_j + u_ji))
+    objective = Minimize(objective)
+    problem = Problem(objective, [])
+    problem.solve()
+    entry[Z_ZIJ][:] = var_i.value
+    entry[Z_ZJI][:] = var_j.value
+    return entry
+
+def ADMM_u(entry):
+    # Temporary for now. TODO: Remove.
+    (Z_ETUP, Z_OBJ, Z_XIVAR, Z_XI, Z_ZIJ, Z_UIJ, Z_XJVAR, Z_XJ, Z_ZJI, Z_UJI) = range(10)
+    rho = 1.0
+
+    entry[Z_UIJ][:] = entry[Z_UIJ] + entry[Z_XI] - entry[Z_ZIJ]
+    entry[Z_UJI][:] = entry[Z_UJI] + entry[Z_XJ] - entry[Z_ZJI]
+    return entry

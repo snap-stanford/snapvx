@@ -86,12 +86,36 @@ def test2(testADMM=False):
             print nid, gvx.GetNodeValue(nid)
 
 
+def test3():
+    numpy.random.seed(1)
+    random.seed(1)
+    num_nodes = 100
+    num_edges = 300
+    n = 10
+    gvx = TUNGraphVX(2, 1)
+    x1 = Variable()
+    x2 = Variable()
+    objNode1 = square(x1)
+    objNode2 = abs(x2 + 3)
+    gvx.AddNode(1, objNode1, x1)
+    gvx.AddNode(2, objNode2, x2)
+
+    # Test getting Variables via gvx
+    n1Var = gvx.GetNodeVariable(1)
+    n2Var = gvx.GetNodeVariable(2)
+    objEdge = square(norm(n1Var - n2Var))
+    gvx.AddEdge(1, 2, objEdge)
+    gvx.distributedADMMTemp()
+
+
 def main():
     testADMM = True
     print '*************** TEST 1 ***************'
-    test1(testADMM=testADMM)
+    # test1(testADMM=testADMM)
     print '*************** TEST 2 ***************'
-    test2(testADMM=testADMM)
+    # test2(testADMM=testADMM)
+    print '*************** TEST 3 ***************'
+    test3()
     print '**************** Done ****************'
 
 if __name__ == "__main__":
