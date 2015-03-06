@@ -157,7 +157,7 @@ def main():
     print '*************** TEST 1 ***************'
     test1(testADMM=testADMM)
     print '*************** TEST 2 ***************'
-    test2(testADMM=testADMM
+    test2(testADMM=testADMM)
     print '*************** TEST 3 ***************'
     test3(testADMM=testADMM)
     print '**************** Done ****************'
