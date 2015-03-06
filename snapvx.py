@@ -51,95 +51,174 @@ class TUNGraphVX(TUNGraph):
         self.status = problem.status
         self.value = problem.value
 
-    # First draft of ADMM algorithm. Currently done serially.
-    # TODO: Use multiprocessing module to make distributed.
-    # TODO: Improve data structure for storing u and z values.
     def __SolveADMM(self):
-        print 'Solving with ADMM...'
-        # Hash table storing the numpy array values of x, z, and u.
-        admm_node_vals = {}
-        admm_edge_vals = {}
-        (Z_IJ, Z_JI, U_IJ, U_JI) = (0, 1, 2, 3)
+        self.__SolveADMMDistributed()
+        # print 'Solving with ADMM...'
+        # # Hash table storing the numpy array values of x, z, and u.
+        # admm_node_vals = {}
+        # admm_edge_vals = {}
+        # (Z_IJ, Z_JI, U_IJ, U_JI) = (0, 1, 2, 3)
+        # num_iterations = 50
+        # rho = 1.0
+
+        # # Initialize x variable for each node.
+        # ni = TUNGraph.BegNI(self)
+        # for i in xrange(TUNGraph.GetNodes(self)):
+        #     nid = ni.GetId()
+        #     varsize = self.node_variables[nid].size
+        #     admm_node_vals[nid] = numpy.zeros((varsize[0], varsize[1]))
+        #     ni.Next()
+        # # Initialize z and u variables for each edge.
+        # ei = TUNGraph.BegEI(self)
+        # for i in xrange(TUNGraph.GetEdges(self)):
+        #     etup = self.__GetEdgeTup(ei.GetSrcNId(), ei.GetDstNId())
+        #     varsize_i = self.node_variables[etup[0]].size
+        #     z_ij = numpy.zeros((varsize_i[0], varsize_i[1]))
+        #     u_ij = numpy.zeros((varsize_i[0], varsize_i[1]))
+        #     varsize_j = self.node_variables[etup[1]].size
+        #     z_ji = numpy.zeros((varsize_j[0], varsize_j[1]))
+        #     u_ji = numpy.zeros((varsize_j[0], varsize_j[1]))
+        #     admm_edge_vals[etup] = [z_ij, z_ji, u_ij, u_ji]
+        #     ei.Next()
+
+        # # Run ADMM for a finite number of iterations.
+        # # TODO: Stopping conditions.
+        # for i in xrange(num_iterations):
+        #     # Debugging information prints current iteration #.
+        #     print '..%d' % i
+
+        #     # x update: Update x_i with z and u variables constant.
+        #     ni = TUNGraph.BegNI(self)
+        #     for i in xrange(TUNGraph.GetNodes(self)):
+        #         nid = ni.GetId()
+        #         var = self.node_variables[nid]
+        #         norms = 0
+        #         # Sum over all neighbors.
+        #         for j in xrange(ni.GetDeg()):
+        #             nbrid = ni.GetNbrNId(j)
+        #             (zi, ui) = (Z_IJ, U_IJ) if (nid < nbrid) else (Z_JI, U_JI)
+        #             edge_vals = admm_edge_vals[self.__GetEdgeTup(nid, nbrid)]
+        #             norms += square(norm(var - edge_vals[zi] + edge_vals[ui]))
+        #         objective = self.node_objectives[nid] + (rho / 2) * norms
+        #         objective = Minimize(objective)
+        #         problem = Problem(objective, [])
+        #         problem.solve()
+        #         admm_node_vals[nid] = var.value
+        #         ni.Next()
+
+        #     # z update: Update z_ij and z_ji with x and u variables constant.
+        #     ei = TUNGraph.BegEI(self)
+        #     for i in xrange(TUNGraph.GetEdges(self)):
+        #         etup = self.__GetEdgeTup(ei.GetSrcNId(), ei.GetDstNId())
+        #         edge_vals = admm_edge_vals[etup]
+        #         node_val_i = admm_node_vals[etup[0]]
+        #         node_val_j = admm_node_vals[etup[1]]
+        #         node_var_i = self.node_variables[etup[0]]
+        #         node_var_j = self.node_variables[etup[1]]
+        #         objective = self.edge_objectives[etup]
+        #         o = node_val_i - node_var_i + edge_vals[U_IJ]
+        #         objective += (rho / 2) * square(norm(o))
+        #         o = node_val_j - node_var_j + edge_vals[U_JI]
+        #         objective += (rho / 2) * square(norm(o))
+        #         objective = Minimize(objective)
+        #         problem = Problem(objective, [])
+        #         problem.solve()
+        #         # TODO: What if both node variables are not in the edge obj?
+        #         edge_vals[Z_IJ] = node_var_i.value
+        #         edge_vals[Z_JI] = node_var_j.value
+        #         ei.Next()
+
+        #     # u update: Update u with x and z variables constant.
+        #     ei = TUNGraph.BegEI(self)
+        #     for i in xrange(TUNGraph.GetEdges(self)):
+        #         etup = self.__GetEdgeTup(ei.GetSrcNId(), ei.GetDstNId())
+        #         edge_vals = admm_edge_vals[etup]
+        #         edge_vals[U_IJ] += admm_node_vals[etup[0]] - edge_vals[Z_IJ]
+        #         edge_vals[U_JI] += admm_node_vals[etup[1]] - edge_vals[Z_JI]
+        #         ei.Next()
+
+        # self.node_values = admm_node_vals
+        # self.status = 'TODO'
+        # self.value = 'TODO'
+
+    def __SolveADMMDistributed(self):
+        global node_vals, edge_vals, getValue
+
+        print 'Solving with ADMM (DISTRIBUTED)'
+        num_processors = 8
         num_iterations = 50
         rho = 1.0
 
-        # Initialize x variable for each node.
+        (X_NID, X_OBJ, X_VAR, X_IND, X_SIZE, X_DEG, X_NEIGHBORS) = range(7)
+        node_info = {}
+        length = 0
         ni = TUNGraph.BegNI(self)
         for i in xrange(TUNGraph.GetNodes(self)):
             nid = ni.GetId()
-            varsize = self.node_variables[nid].size
-            admm_node_vals[nid] = numpy.zeros((varsize[0], varsize[1]))
+            deg = ni.GetDeg()
+            obj = self.node_objectives[nid]
+            var = self.node_variables[nid]
+            varsize = var.size[0]
+            neighbors = [ni.GetNbrNId(j) for j in xrange(deg)]
+            node_info[nid] = (nid, obj, var, length, varsize, deg, neighbors)
+            length += varsize
             ni.Next()
-        # Initialize z and u variables for each edge.
+        node_vals = Array('d', [0.0] * length)
+
+        (Z_EID, Z_OBJ, Z_IVAR, Z_ISIZE, Z_XIIND, Z_ZIJIND, Z_UIJIND,\
+            Z_JVAR, Z_JSIZE, Z_XJIND, Z_ZJIIND, Z_UJIIND) = range(12)
+        edge_list = []
+        edge_info = {}
+        length = 0
         ei = TUNGraph.BegEI(self)
         for i in xrange(TUNGraph.GetEdges(self)):
             etup = self.__GetEdgeTup(ei.GetSrcNId(), ei.GetDstNId())
-            varsize_i = self.node_variables[etup[0]].size
-            z_ij = numpy.zeros((varsize_i[0], varsize_i[1]))
-            u_ij = numpy.zeros((varsize_i[0], varsize_i[1]))
-            varsize_j = self.node_variables[etup[1]].size
-            z_ji = numpy.zeros((varsize_j[0], varsize_j[1]))
-            u_ji = numpy.zeros((varsize_j[0], varsize_j[1]))
-            admm_edge_vals[etup] = [z_ij, z_ji, u_ij, u_ji]
+            obj = self.edge_objectives[etup]
+            info_i = node_info[etup[0]]
+            info_j = node_info[etup[1]]
+            ind_zij = length
+            length += info_i[X_SIZE]
+            ind_uij = length
+            length += info_i[X_SIZE]
+            ind_zji = length
+            length += info_j[X_SIZE]
+            ind_uji = length
+            length += info_j[X_SIZE]
+            tup = (etup, obj,\
+                info_i[X_VAR], info_i[X_SIZE], info_i[X_IND], ind_zij, ind_uij,\
+                info_j[X_VAR], info_j[X_SIZE], info_j[X_IND], ind_zji, ind_uji)
+            edge_list.append(tup)
+            edge_info[etup] = tup
             ei.Next()
+        edge_vals = Array('d', [0.0] * length)
 
-        # Run ADMM for a finite number of iterations.
+        node_list = []
+        for nid, info in node_info.iteritems():
+            entry = [nid, info[X_OBJ], info[X_VAR], info[X_IND], info[X_SIZE],\
+                info[X_DEG]]
+            for i in xrange(info[X_DEG]):
+                neighborId = info[X_NEIGHBORS][i]
+                indices = (Z_ZIJIND, Z_UIJIND) if nid < neighborId else\
+                    (Z_ZJIIND, Z_UJIIND)
+                einfo = edge_info[self.__GetEdgeTup(nid, neighborId)]
+                entry.append(einfo[indices[0]])
+                entry.append(einfo[indices[1]])
+            node_list.append(entry)
+
+        pool = Pool(num_processors)
         # TODO: Stopping conditions.
         for i in xrange(num_iterations):
             # Debugging information prints current iteration #.
             print '..%d' % i
+            pool.map(ADMM_x, node_list)
+            pool.map(ADMM_z, edge_list)
+            pool.map(ADMM_u, edge_list)
 
-            # x update: Update x_i with z and u variables constant.
-            ni = TUNGraph.BegNI(self)
-            for i in xrange(TUNGraph.GetNodes(self)):
-                nid = ni.GetId()
-                var = self.node_variables[nid]
-                norms = 0
-                # Sum over all neighbors.
-                for j in xrange(ni.GetDeg()):
-                    nbrid = ni.GetNbrNId(j)
-                    (zi, ui) = (Z_IJ, U_IJ) if (nid < nbrid) else (Z_JI, U_JI)
-                    edge_vals = admm_edge_vals[self.__GetEdgeTup(nid, nbrid)]
-                    norms += square(norm(var - edge_vals[zi] + edge_vals[ui]))
-                objective = self.node_objectives[nid] + (rho / 2) * norms
-                objective = Minimize(objective)
-                problem = Problem(objective, [])
-                problem.solve()
-                admm_node_vals[nid] = var.value
-                ni.Next()
-
-            # z update: Update z_ij and z_ji with x and u variables constant.
-            ei = TUNGraph.BegEI(self)
-            for i in xrange(TUNGraph.GetEdges(self)):
-                etup = self.__GetEdgeTup(ei.GetSrcNId(), ei.GetDstNId())
-                edge_vals = admm_edge_vals[etup]
-                node_val_i = admm_node_vals[etup[0]]
-                node_val_j = admm_node_vals[etup[1]]
-                node_var_i = self.node_variables[etup[0]]
-                node_var_j = self.node_variables[etup[1]]
-                objective = self.edge_objectives[etup]
-                o = node_val_i - node_var_i + edge_vals[U_IJ]
-                objective += (rho / 2) * square(norm(o))
-                o = node_val_j - node_var_j + edge_vals[U_JI]
-                objective += (rho / 2) * square(norm(o))
-                objective = Minimize(objective)
-                problem = Problem(objective, [])
-                problem.solve()
-                # TODO: What if both node variables are not in the edge obj?
-                edge_vals[Z_IJ] = node_var_i.value
-                edge_vals[Z_JI] = node_var_j.value
-                ei.Next()
-
-            # u update: Update u with x and z variables constant.
-            ei = TUNGraph.BegEI(self)
-            for i in xrange(TUNGraph.GetEdges(self)):
-                etup = self.__GetEdgeTup(ei.GetSrcNId(), ei.GetDstNId())
-                edge_vals = admm_edge_vals[etup]
-                edge_vals[U_IJ] += admm_node_vals[etup[0]] - edge_vals[Z_IJ]
-                edge_vals[U_JI] += admm_node_vals[etup[1]] - edge_vals[Z_JI]
-                ei.Next()
-
-        self.node_values = admm_node_vals
+        for entry in node_list:
+            nid = entry[X_NID]
+            index = entry[X_IND]
+            size = entry[X_SIZE]
+            self.node_values[nid] = getValue(node_vals, index, size)
         self.status = 'TODO'
         self.value = 'TODO'
 
@@ -147,68 +226,6 @@ class TUNGraphVX(TUNGraph):
     def GetNodeValue(self, NId):
         self.__VerifyNId(NId)
         return self.node_values[NId] if (NId in self.node_values) else None
-
-
-    def __SolveADMMDistributed(self):
-        print 'Solving with ADMM (DISTRIBUTED)'
-        (X_NID, X_OBJ, X_VAR, X_VAL, X_DEG) = range(5)
-        (Z_ETUP, Z_OBJ, Z_XIVAR, Z_XI, Z_ZIJ, Z_UIJ, Z_XJVAR, Z_XJ, Z_ZJI, Z_UJI) = range(10)
-        num_iterations = 50
-        rho = 1.0
-
-        edge_hash = {}
-        temp = numpy.array([])
-        var = Variable()
-        ei = TUNGraph.BegEI(self)
-        for i in xrange(TUNGraph.GetEdges(self)):
-            etup = self.__GetEdgeTup(ei.GetSrcNId(), ei.GetDstNId())
-            obj = self.edge_objectives[etup]
-            edge_hash[etup] = [etup, obj, var, temp, temp, temp, var, temp, temp, temp]
-            ei.Next()
-
-        edge_list = edge_hash.values()
-        node_list = []
-        ni = TUNGraph.BegNI(self)
-        for i in xrange(TUNGraph.GetNodes(self)):
-            nid = ni.GetId()
-            deg = ni.GetDeg()
-            obj = self.node_objectives[nid]
-            var = self.node_variables[nid]
-            varsize = var.size
-            x = numpy.zeros((varsize[0], varsize[1]))
-            entry = [nid, obj, var, x, deg]
-            for j in xrange(deg):
-                nbrid = ni.GetNbrNId(j)
-                indices = (Z_XIVAR, Z_XI, Z_ZIJ, Z_UIJ) if nid < nbrid else (Z_XJVAR, Z_XJ, Z_ZJI, Z_UJI)
-                etup = self.__GetEdgeTup(nid, nbrid)
-                z = numpy.zeros((varsize[0], varsize[1]))
-                u = numpy.zeros((varsize[0], varsize[1]))
-                entry.append(z)
-                entry.append(u)
-                edge_entry = edge_hash[etup]
-                edge_entry[indices[0]] = var
-                edge_entry[indices[1]] = x
-                edge_entry[indices[2]] = z
-                edge_entry[indices[3]] = u
-            node_list.append(entry)
-            ni.Next()
-
-        pool = Pool(8)
-        for i in xrange(num_iterations):
-            # Debugging information prints current iteration #.
-            print '..%d' % i
-            node_list = pool.map(ADMM_x, node_list)
-            edge_list = pool.map(ADMM_z, edge_list)
-            edge_list = pool.map(ADMM_u, edge_list)
-
-        for entry in node_list:
-            nid = entry[X_NID]
-            self.node_values[nid] = entry[X_VAL]
-        self.status = 'TODO'
-        self.value = 'TODO'
-
-    def distributedADMMTemp(self):
-        self.__SolveADMMDistributed()
 
 
     # Helper method to verify existence of an NId.
@@ -285,52 +302,81 @@ class TUNGraphVX(TUNGraph):
         return self.edge_constraints[ETup]
 
 
+node_vals = None
+edge_vals = None
+
+def getValue(arr, index, size):
+    return numpy.array(arr[index:(index + size)])
+
+def writeValue(sharedarr, index, nparr, size):
+    if size == 1:
+        nparr = [nparr]
+    sharedarr[index:(index + size)] = nparr
+
 def ADMM_x(entry):
     # Temporary for now. TODO: Remove.
-    (X_NID, X_OBJ, X_VAR, X_VAL, X_DEG) = range(5)
+    (X_NID, X_OBJ, X_VAR, X_IND, X_SIZE, X_DEG, X_NEIGHBORS) = range(7)
     rho = 1.0
 
     var = entry[X_VAR]
+    size = entry[X_SIZE]
     norms = 0
     for i in xrange(entry[X_DEG]):
-        z_index = 5 + (2 * i)
+        z_index = 6 + (2 * i)
         u_index = z_index + 1
         zi = entry[z_index]
         ui = entry[u_index]
-        norms += square(norm(var - zi + ui))
+        z = getValue(edge_vals, zi, size)
+        u = getValue(edge_vals, ui, size)
+        norms += square(norm(var - z + u))
     objective = entry[X_OBJ] + (rho / 2) * norms
     objective = Minimize(objective)
     problem = Problem(objective, [])
     problem.solve()
-    entry[X_VAL][:] = var.value
+    writeValue(node_vals, entry[X_IND], var.value, size)
     return entry
 
 def ADMM_z(entry):
     # Temporary for now. TODO: Remove.
-    (Z_ETUP, Z_OBJ, Z_XIVAR, Z_XI, Z_ZIJ, Z_UIJ, Z_XJVAR, Z_XJ, Z_ZJI, Z_UJI) = range(10)
+    (Z_EID, Z_OBJ, Z_IVAR, Z_ISIZE, Z_XIIND, Z_ZIJIND, Z_UIJIND,\
+        Z_JVAR, Z_JSIZE, Z_XJIND, Z_ZJIIND, Z_UJIIND) = range(12)
     rho = 1.0
-
     objective = entry[Z_OBJ]
-    x_i = entry[Z_XI]
-    var_i = entry[Z_XIVAR]
-    u_ij = entry[Z_UIJ]
+
+    size_i = entry[Z_ISIZE]
+    x_i = getValue(node_vals, entry[Z_XIIND], size_i)
+    var_i = entry[Z_IVAR]
+    u_ij = getValue(edge_vals, entry[Z_UIJIND], size_i)
     objective += (rho / 2) * square(norm(x_i - var_i + u_ij))
-    x_j = entry[Z_XJ]
-    var_j = entry[Z_XJVAR]
-    u_ji = entry[Z_UJI]
+
+    size_j = entry[Z_JSIZE]
+    x_j = getValue(node_vals, entry[Z_XJIND], size_j)
+    var_j = entry[Z_JVAR]
+    u_ji = getValue(edge_vals, entry[Z_UJIIND], size_j)
     objective += (rho / 2) * square(norm(x_j - var_j + u_ji))
+
     objective = Minimize(objective)
     problem = Problem(objective, [])
     problem.solve()
-    entry[Z_ZIJ][:] = var_i.value
-    entry[Z_ZJI][:] = var_j.value
+    writeValue(edge_vals, entry[Z_ZIJIND], var_i.value, size_i)
+    writeValue(edge_vals, entry[Z_ZJIIND], var_j.value, size_j)
     return entry
 
 def ADMM_u(entry):
     # Temporary for now. TODO: Remove.
-    (Z_ETUP, Z_OBJ, Z_XIVAR, Z_XI, Z_ZIJ, Z_UIJ, Z_XJVAR, Z_XJ, Z_ZJI, Z_UJI) = range(10)
+    (Z_EID, Z_OBJ, Z_IVAR, Z_ISIZE, Z_XIIND, Z_ZIJIND, Z_UIJIND,\
+        Z_JVAR, Z_JSIZE, Z_XJIND, Z_ZJIIND, Z_UJIIND) = range(12)
     rho = 1.0
 
-    entry[Z_UIJ][:] = entry[Z_UIJ] + entry[Z_XI] - entry[Z_ZIJ]
-    entry[Z_UJI][:] = entry[Z_UJI] + entry[Z_XJ] - entry[Z_ZJI]
+    size_i = entry[Z_ISIZE]
+    uij = getValue(edge_vals, entry[Z_UIJIND], size_i) +\
+          getValue(node_vals, entry[Z_XIIND], size_i) -\
+          getValue(edge_vals, entry[Z_ZIJIND], size_i)
+    writeValue(edge_vals, entry[Z_UIJIND], uij, size_i)
+
+    size_j = entry[Z_JSIZE]
+    uji = getValue(edge_vals, entry[Z_UJIIND], size_j) +\
+          getValue(node_vals, entry[Z_XJIND], size_j) -\
+          getValue(edge_vals, entry[Z_ZJIIND], size_j)
+    writeValue(edge_vals, entry[Z_UJIIND], uji, size_j)
     return entry
