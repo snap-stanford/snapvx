@@ -103,7 +103,7 @@ def test2(testADMM=False):
 # Each node i: objective = ||x_i - a||^2 where a is randomly generated.
 # Each edge {i,j}: objective = ||x_i - x_j||^2
 # No constraints.
-def test2(testADMM=False):
+def test3(testADMM=False):
     numpy.random.seed(1)
     random.seed(1)
     num_nodes = 1000
