@@ -98,8 +98,8 @@ def test2(testADMM=False):
         print nid, x.value
 
 
-# Largest test on a graph with 1000 nodes and approximately 1600 edges.
-# All vectors are in R^10.
+# Largest test on a graph with num_nodes nodes and num_edges edges.
+# All vectors are in R^n.
 # Each node i: objective = ||x_i - a||^2 where a is randomly generated.
 # Each edge {i,j}: objective = ||x_i - x_j||^2
 # No constraints.
@@ -107,8 +107,8 @@ def test3(testADMM=False):
     numpy.random.seed(1)
     random.seed(1)
     num_nodes = 1000
-    num_edges = 1600
-    n = 10
+    num_edges = 5000
+    n = 1000
     gvx = TUNGraphVX(num_nodes, num_edges)
 
     # Add nodes to graph.
@@ -123,12 +123,14 @@ def test3(testADMM=False):
     for i in xrange(1, num_edges + 1):
         nid1 = random.randint(1, num_nodes)
         nid2 = random.randint(2, num_nodes)
-        if nid1 == nid2 or (gvx.IsEdge(nid1, nid2)):
-            continue
+        while nid1 == nid2 or (gvx.IsEdge(nid1, nid2)):
+            nid1 = random.randint(1, num_nodes)
+            nid2 = random.randint(2, num_nodes)
         x1 = gvx.GetNodeVariable(nid1)
         x2 = gvx.GetNodeVariable(nid2)
         objective = square(norm(x1 - x2))
         gvx.AddEdge(nid1, nid2, objective)
+    print 'G(%d,%d)' % (gvx.GetNodes(), gvx.GetEdges())
 
     # Solve and print results for sanity check.
     testNIds = [57, 246, 295, 501, 724]
@@ -155,9 +157,9 @@ def test3(testADMM=False):
 def main():
     testADMM = True
     print '*************** TEST 1 ***************'
-    test1(testADMM=testADMM)
+    # test1(testADMM=testADMM)
     print '*************** TEST 2 ***************'
-    test2(testADMM=testADMM)
+    # test2(testADMM=testADMM)
     print '*************** TEST 3 ***************'
     test3(testADMM=testADMM)
     print '**************** Done ****************'

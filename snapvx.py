@@ -4,6 +4,7 @@ from snap import *
 from cvxpy import *
 from multiprocessing import *
 import numpy
+import time
 
 
 class TUNGraphVX(TUNGraph):
@@ -170,6 +171,7 @@ class TUNGraphVX(TUNGraph):
         edge_list = []
         edge_info = {}
         length = 0
+        num_edges = 0
         ei = TUNGraph.BegEI(self)
         for i in xrange(TUNGraph.GetEdges(self)):
             etup = self.__GetEdgeTup(ei.GetSrcNId(), ei.GetDstNId())
@@ -188,11 +190,13 @@ class TUNGraphVX(TUNGraph):
                 info_i[X_VAR], info_i[X_SIZE], info_i[X_IND], ind_zij, ind_uij,\
                 info_j[X_VAR], info_j[X_SIZE], info_j[X_IND], ind_zji, ind_uji)
             edge_list.append(tup)
+            num_edges += 1
             edge_info[etup] = tup
             ei.Next()
         edge_vals = Array('d', [0.0] * length)
 
         node_list = []
+        num_nodes = 0
         for nid, info in node_info.iteritems():
             entry = [nid, info[X_OBJ], info[X_VAR], info[X_IND], info[X_SIZE],\
                 info[X_DEG]]
@@ -204,15 +208,49 @@ class TUNGraphVX(TUNGraph):
                 entry.append(einfo[indices[0]])
                 entry.append(einfo[indices[1]])
             node_list.append(entry)
+            num_nodes += 1
 
         pool = Pool(num_processors)
+        # Keep track of total time for x-, z-, and u-updates
+        totalTimes = [0.0] * 3
+        # Keep track of total time for solvers in x- and z-updates
+        solverTimes = [0.0] * 2
         # TODO: Stopping conditions.
-        for i in xrange(num_iterations):
-            # Debugging information prints current iteration #.
+        for i in xrange(1, num_iterations + 1):
+            # Debugging information prints current iteration # and times
             print '..%d' % i
-            pool.map(ADMM_x, node_list)
-            pool.map(ADMM_z, edge_list)
+
+            t0 = time.time()
+            time_info = pool.map(ADMM_x, node_list)
+            t1 = time.time()
+            totalTimes[0] += t1 - t0
+            avg_time = sum(time_info) / num_nodes
+            solverTimes[0] += avg_time
+            print '    x-update: %.5f seconds (Solver Avg: %.5f, Max: %.5f, Min: %.5f' %\
+                ((t1 - t0), avg_time, max(time_info), min(time_info))
+
+            t0 = time.time()
+            time_info = pool.map(ADMM_z, edge_list)
+            t1 = time.time()
+            totalTimes[1] += t1 - t0
+            avg_time = sum(time_info) / num_edges
+            solverTimes[1] += avg_time
+            print '    z-update: %.5f seconds (Solver Avg: %.5f, Max: %.5f, Min: %.5f' %\
+                ((t1 - t0), avg_time, max(time_info), min(time_info))
+
+            t0 = time.time()
             pool.map(ADMM_u, edge_list)
+            t1 = time.time()
+            totalTimes[2] += t1 - t0
+            print '    u-update: %.5f seconds' % (t1 - t0)
+        pool.close()
+        pool.join()
+
+        print 'Average x-update: %.5f seconds' % (totalTimes[0] / num_iterations)
+        print '     Solver only: %.5f seconds' % (solverTimes[0] / num_iterations)
+        print 'Average z-update: %.5f seconds' % (totalTimes[1] / num_iterations)
+        print '     Solver only: %.5f seconds' % (solverTimes[1] / num_iterations)
+        print 'Average u-update: %.5f seconds' % (totalTimes[2] / num_iterations)
 
         for entry in node_list:
             nid = entry[X_NID]
@@ -332,9 +370,11 @@ def ADMM_x(entry):
     objective = entry[X_OBJ] + (rho / 2) * norms
     objective = Minimize(objective)
     problem = Problem(objective, [])
+    t0 = time.time()
     problem.solve()
+    t1 = time.time()
     writeValue(node_vals, entry[X_IND], var.value, size)
-    return entry
+    return (t1 - t0)
 
 def ADMM_z(entry):
     # Temporary for now. TODO: Remove.
@@ -357,10 +397,12 @@ def ADMM_z(entry):
 
     objective = Minimize(objective)
     problem = Problem(objective, [])
+    t0 = time.time()
     problem.solve()
+    t1 = time.time()
     writeValue(edge_vals, entry[Z_ZIJIND], var_i.value, size_i)
     writeValue(edge_vals, entry[Z_ZJIIND], var_j.value, size_j)
-    return entry
+    return (t1 - t0)
 
 def ADMM_u(entry):
     # Temporary for now. TODO: Remove.
