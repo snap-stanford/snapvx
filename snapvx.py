@@ -7,7 +7,7 @@ import numpy
 import time
 
 
-class TUNGraphVX(TUNGraph):
+class TGraphVX(TUNGraph):
 
     # node_objectives  = {int NId : CVXPY Expression}
     # node_variables   = {int NId : CVXPY Variable}
@@ -26,11 +26,12 @@ class TUNGraphVX(TUNGraph):
 
     # Iterates through all nodes and edges. Currently adds objectives together.
     # Option of specifying Maximize() or the default Minimize().
-    # Option to use ADMM.
-    # Graph status and value properties will be set.
-    def Solve(self, M=Minimize, useADMM=False):
+    # Option to use serial version or distributed ADMM.
+    # Graph status and value properties will be set in serial version.
+    # Individual variable values can always be retrieved using GetNodeValue().
+    def Solve(self, M=Minimize, useADMM=True, rho=1.0):
         if useADMM:
-            self.__SolveADMM()
+            self.__SolveADMM(rho)
             return
         objective = 0
         constraints = []
@@ -51,9 +52,18 @@ class TUNGraphVX(TUNGraph):
         problem.solve()
         self.status = problem.status
         self.value = problem.value
+        # Insert into hash to match ADMMDistributed() output
+        ni = TUNGraph.BegNI(self)
+        for i in xrange(TUNGraph.GetNodes(self)):
+            nid = ni.GetId()
+            val = self.node_variables[nid].value
+            if self.node_variables[nid].size[0] == 1:
+                val = numpy.array([val])
+            self.node_values[nid] = val
+            ni.Next()
 
-    def __SolveADMM(self):
-        self.__SolveADMMDistributed()
+    def __SolveADMM(self, rho_param):
+        self.__SolveADMMDistributed(rho_param)
         # print 'Solving with ADMM...'
         # # Hash table storing the numpy array values of x, z, and u.
         # admm_node_vals = {}
@@ -142,15 +152,17 @@ class TUNGraphVX(TUNGraph):
         # self.status = 'TODO'
         # self.value = 'TODO'
 
-    def __SolveADMMDistributed(self):
-        global node_vals, edge_vals, getValue
+    def __SolveADMMDistributed(self, rho_param):
+        global node_vals, edge_vals, rho, getValue
 
-        print 'Solving with ADMM (DISTRIBUTED)'
         num_processors = 8
         num_iterations = 50
-        rho = 1.0
+        rho = rho_param
+        print 'Solving with distributed ADMM (%d processors)' % num_processors
 
-        (X_NID, X_OBJ, X_VAR, X_IND, X_SIZE, X_DEG, X_NEIGHBORS) = range(7)
+        # Node ID, CVXPY Objective, CVXPY Variable, CVXPY Constraints
+        #   Index into node_vals, CVXPY Variable size, Node degree
+        (X_NID, X_OBJ, X_VAR, X_CON, X_IND, X_SIZE, X_DEG, X_NEIGHBORS) = range(8)
         node_info = {}
         length = 0
         ni = TUNGraph.BegNI(self)
@@ -159,15 +171,16 @@ class TUNGraphVX(TUNGraph):
             deg = ni.GetDeg()
             obj = self.node_objectives[nid]
             var = self.node_variables[nid]
+            con = self.node_constraints[nid]
             varsize = var.size[0]
             neighbors = [ni.GetNbrNId(j) for j in xrange(deg)]
-            node_info[nid] = (nid, obj, var, length, varsize, deg, neighbors)
+            node_info[nid] = (nid, obj, var, con, length, varsize, deg, neighbors)
             length += varsize
             ni.Next()
         node_vals = Array('d', [0.0] * length)
 
-        (Z_EID, Z_OBJ, Z_IVAR, Z_ISIZE, Z_XIIND, Z_ZIJIND, Z_UIJIND,\
-            Z_JVAR, Z_JSIZE, Z_XJIND, Z_ZJIIND, Z_UJIIND) = range(12)
+        (Z_EID, Z_OBJ, Z_CON, Z_IVAR, Z_ISIZE, Z_XIIND, Z_ZIJIND, Z_UIJIND,\
+            Z_JVAR, Z_JSIZE, Z_XJIND, Z_ZJIIND, Z_UJIIND) = range(13)
         edge_list = []
         edge_info = {}
         length = 0
@@ -176,6 +189,7 @@ class TUNGraphVX(TUNGraph):
         for i in xrange(TUNGraph.GetEdges(self)):
             etup = self.__GetEdgeTup(ei.GetSrcNId(), ei.GetDstNId())
             obj = self.edge_objectives[etup]
+            con = self.edge_constraints[etup]
             info_i = node_info[etup[0]]
             info_j = node_info[etup[1]]
             ind_zij = length
@@ -186,7 +200,7 @@ class TUNGraphVX(TUNGraph):
             length += info_j[X_SIZE]
             ind_uji = length
             length += info_j[X_SIZE]
-            tup = (etup, obj,\
+            tup = (etup, obj, con,\
                 info_i[X_VAR], info_i[X_SIZE], info_i[X_IND], ind_zij, ind_uij,\
                 info_j[X_VAR], info_j[X_SIZE], info_j[X_IND], ind_zji, ind_uji)
             edge_list.append(tup)
@@ -198,7 +212,7 @@ class TUNGraphVX(TUNGraph):
         node_list = []
         num_nodes = 0
         for nid, info in node_info.iteritems():
-            entry = [nid, info[X_OBJ], info[X_VAR], info[X_IND], info[X_SIZE],\
+            entry = [nid, info[X_OBJ], info[X_VAR], info[X_CON], info[X_IND], info[X_SIZE],\
                 info[X_DEG]]
             for i in xrange(info[X_DEG]):
                 neighborId = info[X_NEIGHBORS][i]
@@ -217,7 +231,7 @@ class TUNGraphVX(TUNGraph):
         solverTimes = [0.0] * 2
         # TODO: Stopping conditions.
         for i in xrange(1, num_iterations + 1):
-            # Debugging information prints current iteration # and times
+            # Debugging information prints current iteration #
             print '..%d' % i
 
             t0 = time.time()
@@ -226,8 +240,8 @@ class TUNGraphVX(TUNGraph):
             totalTimes[0] += t1 - t0
             avg_time = sum(time_info) / num_nodes
             solverTimes[0] += avg_time
-            print '    x-update: %.5f seconds (Solver Avg: %.5f, Max: %.5f, Min: %.5f' %\
-                ((t1 - t0), avg_time, max(time_info), min(time_info))
+            # print '    x-update: %.5f seconds (Solver Avg: %.5f, Max: %.5f, Min: %.5f' %\
+            #     ((t1 - t0), avg_time, max(time_info), min(time_info))
 
             t0 = time.time()
             time_info = pool.map(ADMM_z, edge_list)
@@ -235,22 +249,22 @@ class TUNGraphVX(TUNGraph):
             totalTimes[1] += t1 - t0
             avg_time = sum(time_info) / num_edges
             solverTimes[1] += avg_time
-            print '    z-update: %.5f seconds (Solver Avg: %.5f, Max: %.5f, Min: %.5f' %\
-                ((t1 - t0), avg_time, max(time_info), min(time_info))
+            # print '    z-update: %.5f seconds (Solver Avg: %.5f, Max: %.5f, Min: %.5f' %\
+            #     ((t1 - t0), avg_time, max(time_info), min(time_info))
 
             t0 = time.time()
             pool.map(ADMM_u, edge_list)
             t1 = time.time()
             totalTimes[2] += t1 - t0
-            print '    u-update: %.5f seconds' % (t1 - t0)
+            # print '    u-update: %.5f seconds' % (t1 - t0)
         pool.close()
         pool.join()
 
-        print 'Average x-update: %.5f seconds' % (totalTimes[0] / num_iterations)
-        print '     Solver only: %.5f seconds' % (solverTimes[0] / num_iterations)
-        print 'Average z-update: %.5f seconds' % (totalTimes[1] / num_iterations)
-        print '     Solver only: %.5f seconds' % (solverTimes[1] / num_iterations)
-        print 'Average u-update: %.5f seconds' % (totalTimes[2] / num_iterations)
+        # print 'Average x-update: %.5f seconds' % (totalTimes[0] / num_iterations)
+        # print '     Solver only: %.5f seconds' % (solverTimes[0] / num_iterations)
+        # print 'Average z-update: %.5f seconds' % (totalTimes[1] / num_iterations)
+        # print '     Solver only: %.5f seconds' % (solverTimes[1] / num_iterations)
+        # print 'Average u-update: %.5f seconds' % (totalTimes[2] / num_iterations)
 
         for entry in node_list:
             nid = entry[X_NID]
@@ -264,6 +278,24 @@ class TUNGraphVX(TUNGraph):
     def GetNodeValue(self, NId):
         self.__VerifyNId(NId)
         return self.node_values[NId] if (NId in self.node_values) else None
+
+    # Prints value of all node variables to console or file, if given
+    def PrintSolution(self, filename=None):
+        numpy.set_printoptions(linewidth=numpy.inf)
+        if filename == None:
+            ni = TUNGraph.BegNI(self)
+            for i in xrange(TUNGraph.GetNodes(self)):
+                nid = ni.GetId()
+                print 'Node %d:' % nid, numpy.transpose(self.node_values[nid])
+                ni.Next()
+        else:
+            outfile = open(filename, 'w+')
+            ni = TUNGraph.BegNI(self)
+            for i in xrange(TUNGraph.GetNodes(self)):
+                nid = ni.GetId()
+                s = 'Node %d: %s\n' % (nid, str(numpy.transpose(self.node_values[nid])))
+                outfile.write(s)
+                ni.Next()
 
 
     # Helper method to verify existence of an NId.
@@ -342,6 +374,7 @@ class TUNGraphVX(TUNGraph):
 
 node_vals = None
 edge_vals = None
+rho = 1.0
 
 def getValue(arr, index, size):
     return numpy.array(arr[index:(index + size)])
@@ -352,15 +385,15 @@ def writeValue(sharedarr, index, nparr, size):
     sharedarr[index:(index + size)] = nparr
 
 def ADMM_x(entry):
+    global rho
     # Temporary for now. TODO: Remove.
-    (X_NID, X_OBJ, X_VAR, X_IND, X_SIZE, X_DEG, X_NEIGHBORS) = range(7)
-    rho = 1.0
+    (X_NID, X_OBJ, X_VAR, X_CON, X_IND, X_SIZE, X_DEG, X_NEIGHBORS) = range(8)
 
     var = entry[X_VAR]
     size = entry[X_SIZE]
     norms = 0
     for i in xrange(entry[X_DEG]):
-        z_index = 6 + (2 * i)
+        z_index = 7 + (2 * i)
         u_index = z_index + 1
         zi = entry[z_index]
         ui = entry[u_index]
@@ -369,7 +402,8 @@ def ADMM_x(entry):
         norms += square(norm(var - z + u))
     objective = entry[X_OBJ] + (rho / 2) * norms
     objective = Minimize(objective)
-    problem = Problem(objective, [])
+    constraints = entry[X_CON]
+    problem = Problem(objective, constraints)
     t0 = time.time()
     problem.solve()
     t1 = time.time()
@@ -377,11 +411,12 @@ def ADMM_x(entry):
     return (t1 - t0)
 
 def ADMM_z(entry):
+    global rho
     # Temporary for now. TODO: Remove.
-    (Z_EID, Z_OBJ, Z_IVAR, Z_ISIZE, Z_XIIND, Z_ZIJIND, Z_UIJIND,\
-        Z_JVAR, Z_JSIZE, Z_XJIND, Z_ZJIIND, Z_UJIIND) = range(12)
-    rho = 1.0
+    (Z_EID, Z_OBJ, Z_CON, Z_IVAR, Z_ISIZE, Z_XIIND, Z_ZIJIND, Z_UIJIND,\
+        Z_JVAR, Z_JSIZE, Z_XJIND, Z_ZJIIND, Z_UJIIND) = range(13)
     objective = entry[Z_OBJ]
+    constraints = entry[Z_CON]
 
     size_i = entry[Z_ISIZE]
     x_i = getValue(node_vals, entry[Z_XIIND], size_i)
@@ -396,7 +431,7 @@ def ADMM_z(entry):
     objective += (rho / 2) * square(norm(x_j - var_j + u_ji))
 
     objective = Minimize(objective)
-    problem = Problem(objective, [])
+    problem = Problem(objective, constraints)
     t0 = time.time()
     problem.solve()
     t1 = time.time()
@@ -405,10 +440,10 @@ def ADMM_z(entry):
     return (t1 - t0)
 
 def ADMM_u(entry):
+    global rho
     # Temporary for now. TODO: Remove.
-    (Z_EID, Z_OBJ, Z_IVAR, Z_ISIZE, Z_XIIND, Z_ZIJIND, Z_UIJIND,\
-        Z_JVAR, Z_JSIZE, Z_XJIND, Z_ZJIIND, Z_UJIIND) = range(12)
-    rho = 1.0
+    (Z_EID, Z_OBJ, Z_CON, Z_IVAR, Z_ISIZE, Z_XIIND, Z_ZIJIND, Z_UIJIND,\
+        Z_JVAR, Z_JSIZE, Z_XJIND, Z_ZJIIND, Z_UJIIND) = range(13)
 
     size_i = entry[Z_ISIZE]
     uij = getValue(edge_vals, entry[Z_UIJIND], size_i) +\

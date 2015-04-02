@@ -3,3 +3,6 @@
 
 # Compiler-generated files
 *.pyc
+
+# Output files
+*.out
