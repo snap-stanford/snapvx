@@ -7,10 +7,28 @@ import numpy
 import time
 
 
+def LoadEdgeList(filename):
+    gvx = TGraphVX()
+    nids = set()
+    infile = open(filename, 'r')
+    for line in infile:
+        if line.startswith('#'): continue
+        [src, dst] = line.split()
+        if int(src) not in nids:
+            gvx.AddNode(int(src))
+        if int(dst) not in nids:
+            gvx.AddNode(int(dst))
+        gvx.AddEdge(int(src), int(dst))
+    return gvx
+
+
 class TGraphVX(TUNGraph):
 
+    __default_objective = Minimize(0)
+    __default_constraints = []
+
     # node_objectives  = {int NId : CVXPY Expression}
-    # node_variables   = {int NId : CVXPY Variable}
+    # node_variables   = {int NId : [(CVXPY Variable name, CVXPY Variable, offset)]}
     # node_constraints = {int NId : [CVXPY Constraint]}
     # edge_objectives  = {(int NId1, int NId2) : CVXPY Expression}
     # edge_constraints = {(int NId1, int NId2) : [CVXPY Constraint]}
@@ -23,6 +41,31 @@ class TGraphVX(TUNGraph):
         self.edge_constraints = {}
         self.node_values = {}
         TUNGraph.__init__(self, Nodes, Edges)
+
+
+    def AddNodeObjectives(self, filename, obj_func):
+        infile = open(filename, 'r')
+        for line in infile:
+            if line.startswith('#'): continue
+            data = [x.strip() for x in line.split(',')]
+            objective = obj_func(data)
+            self.SetNodeObjective(int(data[0]), objective)
+
+    def AddEdgeObjectives(self, obj_func):
+        ei = TUNGraph.BegEI(self)
+        for i in xrange(TUNGraph.GetEdges(self)):
+            src_id = ei.GetSrcNId()
+            src_vars = {}
+            for v in self.node_variables[src_id]:
+                src_vars[v[0]] = v[1]
+            dst_id = ei.GetDstNId()
+            dst_vars = {}
+            for v in self.node_variables[dst_id]:
+                dst_vars[v[0]] = v[1]
+            objective = obj_func(src_vars, dst_vars)
+            self.SetEdgeObjective(src_id, dst_id, objective)
+            ei.Next()
+
 
     # Iterates through all nodes and edges. Currently adds objectives together.
     # Option of specifying Maximize() or the default Minimize().
@@ -56,103 +99,17 @@ class TGraphVX(TUNGraph):
         ni = TUNGraph.BegNI(self)
         for i in xrange(TUNGraph.GetNodes(self)):
             nid = ni.GetId()
-            val = self.node_variables[nid].value
-            if self.node_variables[nid].size[0] == 1:
-                val = numpy.array([val])
-            self.node_values[nid] = val
+            variables = self.node_variables[nid]
+            value = numpy.array([])
+            for v in variables:
+                val = v[1].value
+                if v[1].size[0] == 1:
+                    val = numpy.array([val])
+                value = numpy.concatenate((value, val))
+            self.node_values[nid] = value
             ni.Next()
 
     def __SolveADMM(self, rho_param):
-        self.__SolveADMMDistributed(rho_param)
-        # print 'Solving with ADMM...'
-        # # Hash table storing the numpy array values of x, z, and u.
-        # admm_node_vals = {}
-        # admm_edge_vals = {}
-        # (Z_IJ, Z_JI, U_IJ, U_JI) = (0, 1, 2, 3)
-        # num_iterations = 50
-        # rho = 1.0
-
-        # # Initialize x variable for each node.
-        # ni = TUNGraph.BegNI(self)
-        # for i in xrange(TUNGraph.GetNodes(self)):
-        #     nid = ni.GetId()
-        #     varsize = self.node_variables[nid].size
-        #     admm_node_vals[nid] = numpy.zeros((varsize[0], varsize[1]))
-        #     ni.Next()
-        # # Initialize z and u variables for each edge.
-        # ei = TUNGraph.BegEI(self)
-        # for i in xrange(TUNGraph.GetEdges(self)):
-        #     etup = self.__GetEdgeTup(ei.GetSrcNId(), ei.GetDstNId())
-        #     varsize_i = self.node_variables[etup[0]].size
-        #     z_ij = numpy.zeros((varsize_i[0], varsize_i[1]))
-        #     u_ij = numpy.zeros((varsize_i[0], varsize_i[1]))
-        #     varsize_j = self.node_variables[etup[1]].size
-        #     z_ji = numpy.zeros((varsize_j[0], varsize_j[1]))
-        #     u_ji = numpy.zeros((varsize_j[0], varsize_j[1]))
-        #     admm_edge_vals[etup] = [z_ij, z_ji, u_ij, u_ji]
-        #     ei.Next()
-
-        # # Run ADMM for a finite number of iterations.
-        # # TODO: Stopping conditions.
-        # for i in xrange(num_iterations):
-        #     # Debugging information prints current iteration #.
-        #     print '..%d' % i
-
-        #     # x update: Update x_i with z and u variables constant.
-        #     ni = TUNGraph.BegNI(self)
-        #     for i in xrange(TUNGraph.GetNodes(self)):
-        #         nid = ni.GetId()
-        #         var = self.node_variables[nid]
-        #         norms = 0
-        #         # Sum over all neighbors.
-        #         for j in xrange(ni.GetDeg()):
-        #             nbrid = ni.GetNbrNId(j)
-        #             (zi, ui) = (Z_IJ, U_IJ) if (nid < nbrid) else (Z_JI, U_JI)
-        #             edge_vals = admm_edge_vals[self.__GetEdgeTup(nid, nbrid)]
-        #             norms += square(norm(var - edge_vals[zi] + edge_vals[ui]))
-        #         objective = self.node_objectives[nid] + (rho / 2) * norms
-        #         objective = Minimize(objective)
-        #         problem = Problem(objective, [])
-        #         problem.solve()
-        #         admm_node_vals[nid] = var.value
-        #         ni.Next()
-
-        #     # z update: Update z_ij and z_ji with x and u variables constant.
-        #     ei = TUNGraph.BegEI(self)
-        #     for i in xrange(TUNGraph.GetEdges(self)):
-        #         etup = self.__GetEdgeTup(ei.GetSrcNId(), ei.GetDstNId())
-        #         edge_vals = admm_edge_vals[etup]
-        #         node_val_i = admm_node_vals[etup[0]]
-        #         node_val_j = admm_node_vals[etup[1]]
-        #         node_var_i = self.node_variables[etup[0]]
-        #         node_var_j = self.node_variables[etup[1]]
-        #         objective = self.edge_objectives[etup]
-        #         o = node_val_i - node_var_i + edge_vals[U_IJ]
-        #         objective += (rho / 2) * square(norm(o))
-        #         o = node_val_j - node_var_j + edge_vals[U_JI]
-        #         objective += (rho / 2) * square(norm(o))
-        #         objective = Minimize(objective)
-        #         problem = Problem(objective, [])
-        #         problem.solve()
-        #         # TODO: What if both node variables are not in the edge obj?
-        #         edge_vals[Z_IJ] = node_var_i.value
-        #         edge_vals[Z_JI] = node_var_j.value
-        #         ei.Next()
-
-        #     # u update: Update u with x and z variables constant.
-        #     ei = TUNGraph.BegEI(self)
-        #     for i in xrange(TUNGraph.GetEdges(self)):
-        #         etup = self.__GetEdgeTup(ei.GetSrcNId(), ei.GetDstNId())
-        #         edge_vals = admm_edge_vals[etup]
-        #         edge_vals[U_IJ] += admm_node_vals[etup[0]] - edge_vals[Z_IJ]
-        #         edge_vals[U_JI] += admm_node_vals[etup[1]] - edge_vals[Z_JI]
-        #         ei.Next()
-
-        # self.node_values = admm_node_vals
-        # self.status = 'TODO'
-        # self.value = 'TODO'
-
-    def __SolveADMMDistributed(self, rho_param):
         global node_vals, edge_vals, rho, getValue
 
         num_processors = 8
@@ -160,9 +117,9 @@ class TGraphVX(TUNGraph):
         rho = rho_param
         print 'Solving with distributed ADMM (%d processors)' % num_processors
 
-        # Node ID, CVXPY Objective, CVXPY Variable, CVXPY Constraints
-        #   Index into node_vals, CVXPY Variable size, Node degree
-        (X_NID, X_OBJ, X_VAR, X_CON, X_IND, X_SIZE, X_DEG, X_NEIGHBORS) = range(8)
+        # Node ID, CVXPY Objective, CVXPY Variables, CVXPY Constraints,
+        #   Starting index into node_vals, Length of all variables, Node degree
+        (X_NID, X_OBJ, X_VARS, X_CON, X_IND, X_LEN, X_DEG, X_NEIGHBORS) = range(8)
         node_info = {}
         length = 0
         ni = TUNGraph.BegNI(self)
@@ -170,17 +127,19 @@ class TGraphVX(TUNGraph):
             nid = ni.GetId()
             deg = ni.GetDeg()
             obj = self.node_objectives[nid]
-            var = self.node_variables[nid]
+            variables = self.node_variables[nid]
             con = self.node_constraints[nid]
-            varsize = var.size[0]
             neighbors = [ni.GetNbrNId(j) for j in xrange(deg)]
-            node_info[nid] = (nid, obj, var, con, length, varsize, deg, neighbors)
-            length += varsize
+            l = 0
+            for tup in variables:
+                l += tup[1].size[0]
+            node_info[nid] = (nid, obj, variables, con, length, l, deg, neighbors)
+            length += l
             ni.Next()
         node_vals = Array('d', [0.0] * length)
 
-        (Z_EID, Z_OBJ, Z_CON, Z_IVAR, Z_ISIZE, Z_XIIND, Z_ZIJIND, Z_UIJIND,\
-            Z_JVAR, Z_JSIZE, Z_XJIND, Z_ZJIIND, Z_UJIIND) = range(13)
+        (Z_EID, Z_OBJ, Z_CON, Z_IVARS, Z_ILEN, Z_XIIND, Z_ZIJIND, Z_UIJIND,\
+            Z_JVARS, Z_JLEN, Z_XJIND, Z_ZJIIND, Z_UJIIND) = range(13)
         edge_list = []
         edge_info = {}
         length = 0
@@ -193,16 +152,16 @@ class TGraphVX(TUNGraph):
             info_i = node_info[etup[0]]
             info_j = node_info[etup[1]]
             ind_zij = length
-            length += info_i[X_SIZE]
+            length += info_i[X_LEN]
             ind_uij = length
-            length += info_i[X_SIZE]
+            length += info_i[X_LEN]
             ind_zji = length
-            length += info_j[X_SIZE]
+            length += info_j[X_LEN]
             ind_uji = length
-            length += info_j[X_SIZE]
+            length += info_j[X_LEN]
             tup = (etup, obj, con,\
-                info_i[X_VAR], info_i[X_SIZE], info_i[X_IND], ind_zij, ind_uij,\
-                info_j[X_VAR], info_j[X_SIZE], info_j[X_IND], ind_zji, ind_uji)
+                info_i[X_VARS], info_i[X_LEN], info_i[X_IND], ind_zij, ind_uij,\
+                info_j[X_VARS], info_j[X_LEN], info_j[X_IND], ind_zji, ind_uji)
             edge_list.append(tup)
             num_edges += 1
             edge_info[etup] = tup
@@ -212,7 +171,7 @@ class TGraphVX(TUNGraph):
         node_list = []
         num_nodes = 0
         for nid, info in node_info.iteritems():
-            entry = [nid, info[X_OBJ], info[X_VAR], info[X_CON], info[X_IND], info[X_SIZE],\
+            entry = [nid, info[X_OBJ], info[X_VARS], info[X_CON], info[X_IND], info[X_LEN],\
                 info[X_DEG]]
             for i in xrange(info[X_DEG]):
                 neighborId = info[X_NEIGHBORS][i]
@@ -269,15 +228,20 @@ class TGraphVX(TUNGraph):
         for entry in node_list:
             nid = entry[X_NID]
             index = entry[X_IND]
-            size = entry[X_SIZE]
+            size = entry[X_LEN]
             self.node_values[nid] = getValue(node_vals, index, size)
         self.status = 'TODO'
         self.value = 'TODO'
 
     # API to get node variable value after solving with ADMM.
-    def GetNodeValue(self, NId):
+    def GetNodeValue(self, NId, name):
         self.__VerifyNId(NId)
-        return self.node_values[NId] if (NId in self.node_values) else None
+        for v in self.node_variables[NId]:
+            if v[0] == name:
+                offset = v[2]
+                value = self.node_values[NId]
+                return value[offset:(offset + v[1].size[0])]
+        return None
 
     # Prints value of all node variables to console or file, if given
     def PrintSolution(self, filename=None):
@@ -286,15 +250,20 @@ class TGraphVX(TUNGraph):
             ni = TUNGraph.BegNI(self)
             for i in xrange(TUNGraph.GetNodes(self)):
                 nid = ni.GetId()
-                print 'Node %d:' % nid, numpy.transpose(self.node_values[nid])
+                print 'Node %d:' % nid,
+                for v in self.node_variables[nid]:
+                    print v[0], numpy.transpose(self.GetNodeValue(nid, v[0]))
                 ni.Next()
         else:
             outfile = open(filename, 'w+')
             ni = TUNGraph.BegNI(self)
             for i in xrange(TUNGraph.GetNodes(self)):
                 nid = ni.GetId()
-                s = 'Node %d: %s\n' % (nid, str(numpy.transpose(self.node_values[nid])))
+                s = 'Node %d:\n' % nid
                 outfile.write(s)
+                for v in self.node_variables[nid]:
+                    s = '%s %s\n' % (v[0], str(numpy.transpose(self.GetNodeValue(nid, v[0]))))
+                    outfile.write(s)
                 ni.Next()
 
 
@@ -303,28 +272,33 @@ class TGraphVX(TUNGraph):
         if not TUNGraph.IsNode(self, NId):
             raise Exception('Node %d does not exist.' % NId)
 
+    # Helper method to get CVXPY Variables out of a CVXPY Objective
+    def __ExtractVariableList(self, Objective):
+        l = [(var.name(), var) for var in Objective.variables()]
+        # Sort in ascending order by name
+        l.sort(key=lambda t: t[0])
+        l2 = []
+        offset = 0
+        for t in l:
+            l2.append((t[0], t[1], offset))
+            offset += t[1].size[0]
+        return l2
+
     # Adds a Node to the TUNGraph and stores the corresponding CVX information.
-    def AddNode(self, NId, Objective, Variable, Constraints=[]):
+    def AddNode(self, NId, Objective=__default_objective, Constraints=__default_constraints):
         self.node_objectives[NId] = Objective
-        self.node_variables[NId] = Variable
+        self.node_variables[NId] = self.__ExtractVariableList(Objective)
         self.node_constraints[NId] = Constraints
         return TUNGraph.AddNode(self, NId)
 
     def SetNodeObjective(self, NId, Objective):
         self.__VerifyNId(NId)
         self.node_objectives[NId] = Objective
+        self.node_variables[NId] = self.__ExtractVariableList(Objective)
 
     def GetNodeObjective(self, NId):
         self.__VerifyNId(NId)
         return self.node_objectives[NId]
-
-    def SetNodeVariable(self, NId, Variable):
-        self.__VerifyNId(NId)
-        self.node_variables[NId] = Variable
-
-    def GetNodeVariable(self, NId):
-        self.__VerifyNId(NId)
-        return self.node_variables[NId]
 
     def SetNodeConstraints(self, NId, Constraints):
         self.__VerifyNId(NId)
@@ -345,13 +319,13 @@ class TGraphVX(TUNGraph):
             raise Exception('Edge {%d,%d} does not exist.' % ETup)
 
     # Adds an Edge to the TUNGraph and stores the corresponding CVX information.
-    def AddEdge(self, SrcNId, DstNId, Objective, Constraints=[]):
+    def AddEdge(self, SrcNId, DstNId, Objective=__default_objective, Constraints=__default_constraints):
         ETup = self.__GetEdgeTup(SrcNId, DstNId)
         self.edge_objectives[ETup] = Objective
         self.edge_constraints[ETup] = Constraints
         return TUNGraph.AddEdge(self, SrcNId, DstNId)
 
-    def SetEdgeObjective(self, SrcNId, DstNId, Objective):
+    def SetEdgeObjective(self, SrcNId, DstNId, Objective=__default_objective):
         ETup = self.__GetEdgeTup(SrcNId, DstNId)
         self.__VerifyEdgeTup(ETup)
         self.edge_objectives[ETup] = Objective
@@ -384,13 +358,25 @@ def writeValue(sharedarr, index, nparr, size):
         nparr = [nparr]
     sharedarr[index:(index + size)] = nparr
 
+def writeObjective(sharedarr, index, objective, variables):
+    for var in objective.variables():
+        name = var.name()
+        value = var.value
+        # Find the tuple in variables with the same name. Take the offset.
+        # If no tuple exists, then silently skip.
+        for v in variables:
+            if v[0] == name:
+                offset = v[2]
+                writeValue(sharedarr, index + offset, value, var.size[0])
+                return
+
 def ADMM_x(entry):
     global rho
     # Temporary for now. TODO: Remove.
-    (X_NID, X_OBJ, X_VAR, X_CON, X_IND, X_SIZE, X_DEG, X_NEIGHBORS) = range(8)
+    (X_NID, X_OBJ, X_VARS, X_CON, X_IND, X_LEN, X_DEG, X_NEIGHBORS) = range(8)
 
-    var = entry[X_VAR]
-    size = entry[X_SIZE]
+    variables = entry[X_VARS]
+    size = entry[X_LEN]
     norms = 0
     for i in xrange(entry[X_DEG]):
         z_index = 7 + (2 * i)
@@ -399,7 +385,7 @@ def ADMM_x(entry):
         ui = entry[u_index]
         z = getValue(edge_vals, zi, size)
         u = getValue(edge_vals, ui, size)
-        norms += square(norm(var - z + u))
+        norms += square(norm(variables[0][1] - z + u))
     objective = entry[X_OBJ] + (rho / 2) * norms
     objective = Minimize(objective)
     constraints = entry[X_CON]
@@ -407,51 +393,52 @@ def ADMM_x(entry):
     t0 = time.time()
     problem.solve()
     t1 = time.time()
-    writeValue(node_vals, entry[X_IND], var.value, size)
+    writeObjective(node_vals, entry[X_IND], objective, variables)
     return (t1 - t0)
 
 def ADMM_z(entry):
     global rho
     # Temporary for now. TODO: Remove.
-    (Z_EID, Z_OBJ, Z_CON, Z_IVAR, Z_ISIZE, Z_XIIND, Z_ZIJIND, Z_UIJIND,\
-        Z_JVAR, Z_JSIZE, Z_XJIND, Z_ZJIIND, Z_UJIIND) = range(13)
+    (Z_EID, Z_OBJ, Z_CON, Z_IVARS, Z_ILEN, Z_XIIND, Z_ZIJIND, Z_UIJIND,\
+        Z_JVARS, Z_JLEN, Z_XJIND, Z_ZJIIND, Z_UJIIND) = range(13)
     objective = entry[Z_OBJ]
     constraints = entry[Z_CON]
 
-    size_i = entry[Z_ISIZE]
+    size_i = entry[Z_ILEN]
     x_i = getValue(node_vals, entry[Z_XIIND], size_i)
-    var_i = entry[Z_IVAR]
+    variables_i = entry[Z_IVARS]
     u_ij = getValue(edge_vals, entry[Z_UIJIND], size_i)
-    objective += (rho / 2) * square(norm(x_i - var_i + u_ij))
+    objective += (rho / 2) * square(norm(x_i - variables_i[0][1] + u_ij))
 
-    size_j = entry[Z_JSIZE]
+    size_j = entry[Z_JLEN]
     x_j = getValue(node_vals, entry[Z_XJIND], size_j)
-    var_j = entry[Z_JVAR]
+    variables_j = entry[Z_JVARS]
     u_ji = getValue(edge_vals, entry[Z_UJIIND], size_j)
-    objective += (rho / 2) * square(norm(x_j - var_j + u_ji))
+    objective += (rho / 2) * square(norm(x_j - variables_j[0][1] + u_ji))
 
     objective = Minimize(objective)
     problem = Problem(objective, constraints)
     t0 = time.time()
     problem.solve()
     t1 = time.time()
-    writeValue(edge_vals, entry[Z_ZIJIND], var_i.value, size_i)
-    writeValue(edge_vals, entry[Z_ZJIIND], var_j.value, size_j)
+
+    writeObjective(edge_vals, entry[Z_ZIJIND], objective, variables_i)
+    writeObjective(edge_vals, entry[Z_ZJIIND], objective, variables_j)
     return (t1 - t0)
 
 def ADMM_u(entry):
     global rho
     # Temporary for now. TODO: Remove.
-    (Z_EID, Z_OBJ, Z_CON, Z_IVAR, Z_ISIZE, Z_XIIND, Z_ZIJIND, Z_UIJIND,\
-        Z_JVAR, Z_JSIZE, Z_XJIND, Z_ZJIIND, Z_UJIIND) = range(13)
+    (Z_EID, Z_OBJ, Z_CON, Z_IVARS, Z_ILEN, Z_XIIND, Z_ZIJIND, Z_UIJIND,\
+        Z_JVARS, Z_JLEN, Z_XJIND, Z_ZJIIND, Z_UJIIND) = range(13)
 
-    size_i = entry[Z_ISIZE]
+    size_i = entry[Z_ILEN]
     uij = getValue(edge_vals, entry[Z_UIJIND], size_i) +\
           getValue(node_vals, entry[Z_XIIND], size_i) -\
           getValue(edge_vals, entry[Z_ZIJIND], size_i)
     writeValue(edge_vals, entry[Z_UIJIND], uij, size_i)
 
-    size_j = entry[Z_JSIZE]
+    size_j = entry[Z_JLEN]
     uji = getValue(edge_vals, entry[Z_UJIIND], size_j) +\
           getValue(node_vals, entry[Z_XJIND], size_j) -\
           getValue(edge_vals, entry[Z_ZJIIND], size_j)

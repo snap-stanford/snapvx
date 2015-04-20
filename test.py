@@ -17,18 +17,15 @@ testADMM = True
 # x1 = -0.5, x2 = -1
 def test1(testADMM=False):
     gvx = TGraphVX(2, 1)
-    x1 = Variable()
-    x2 = Variable()
+    x1 = Variable(name='x')
+    x2 = Variable(name='x')
     objNode1 = square(x1)
     objNode2 = abs(x2 + 3)
-    gvx.AddNode(1, objNode1, x1, Constraints=[x1 >= 0])
-    gvx.AddNode(2, objNode2, x2)
+    gvx.AddNode(1, objNode1)
+    gvx.AddNode(2, objNode2)
 
-    # Test getting Variables via gvx
-    n1Var = gvx.GetNodeVariable(1)
-    n2Var = gvx.GetNodeVariable(2)
-    objEdge = square(norm(n1Var - n2Var))
-    gvx.AddEdge(1, 2, objEdge, Constraints=[x2 <= -2])
+    objEdge = square(norm(x1 - x2))
+    gvx.AddEdge(1, 2, objEdge)
 
     # ADMM test to ensure that calculated values are the same.
     if testADMM:
@@ -46,6 +43,31 @@ def test1(testADMM=False):
     print gvx.status, gvx.value
     gvx.PrintSolution()
     gvx.PrintSolution('test1-serial.out')
+
+
+def objective_func(d):
+    x = Variable(name='x')
+    nid = int(d[0])
+    if nid == 1:
+        return square(x + int(d[1]))
+    elif nid == 2:
+        return abs(x + int(d[1]))
+
+def objective_edge_func(src, dst):
+    return square(norm(src['x'] - dst['x']))
+
+def test4(testADMM=False):
+    gvx = LoadEdgeList('test4.edges')
+    gvx.AddNodeObjectives('test4.csv', objective_func)
+    gvx.AddEdgeObjectives(objective_edge_func)
+
+    t0 = time.time()
+    gvx.Solve(useADMM=False)
+    t1 = time.time()
+    print 'Serial Solution [%.4f seconds]' % (t1 - t0)
+    print gvx.status, gvx.value
+    gvx.PrintSolution()
+    gvx.PrintSolution('test4-serial.out')
 
 
 # Larger test on a graph with 100 nodes and approximately 300 edges.
@@ -66,7 +88,7 @@ def test2(testADMM=False):
         x = Variable(n)
         a = numpy.random.randn(n)
         objective = square(norm(x - a))
-        gvx.AddNode(i, objective, x)
+        gvx.AddNode(i, objective)
 
     # Add edges to graph by choosing two random nids. If nids are equal or
     # the edge already exists, skip.
@@ -162,11 +184,13 @@ def test3(testADMM=False):
 
 def main():
     print '*************** TEST 1 ***************'
-    test1(testADMM=testADMM)
+    # test1(testADMM=testADMM)
     print '*************** TEST 2 ***************'
     # test2(testADMM=testADMM)
     print '*************** TEST 3 ***************'
     # test3(testADMM=testADMM)
+    print '*************** TEST 4 ***************'
+    test4(testADMM=testADMM)
     print '**************** Done ****************'
 
 if __name__ == "__main__":
