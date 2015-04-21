@@ -45,31 +45,6 @@ def test1(testADMM=False):
     gvx.PrintSolution('test1-serial.out')
 
 
-def objective_func(d):
-    x = Variable(name='x')
-    nid = int(d[0])
-    if nid == 1:
-        return square(x + int(d[1]))
-    elif nid == 2:
-        return abs(x + int(d[1]))
-
-def objective_edge_func(src, dst):
-    return square(norm(src['x'] - dst['x']))
-
-def test4(testADMM=False):
-    gvx = LoadEdgeList('test4.edges')
-    gvx.AddNodeObjectives('test4.csv', objective_func)
-    gvx.AddEdgeObjectives(objective_edge_func)
-
-    t0 = time.time()
-    gvx.Solve(useADMM=False)
-    t1 = time.time()
-    print 'Serial Solution [%.4f seconds]' % (t1 - t0)
-    print gvx.status, gvx.value
-    gvx.PrintSolution()
-    gvx.PrintSolution('test4-serial.out')
-
-
 # Larger test on a graph with 100 nodes and approximately 300 edges.
 # All vectors are in R^10.
 # Each node i: objective = ||x_i - a||^2 where a is randomly generated.
@@ -182,6 +157,89 @@ def test3(testADMM=False):
     gvx.PrintSolution('test3-serial.out')
 
 
+# Simple test on a graph with 2 nodes and 1 edge using bulk loading.
+# Node 1: objective = x1^2
+# Node 2: objective = |x2 + 3|
+# Edge: objective = ||x1 - x2||^2
+#
+# With no constraints:
+# Expect optimal status with a value of 2.5
+# x1 = -0.5, x2 = -1
+def test4(testADMM=False):
+    gvx = LoadEdgeList('test4.edges')
+    gvx.AddNodeObjectives('test4.csv', objective_node_func_4)
+    gvx.AddEdgeObjectives(objective_edge_func_4)
+
+    # ADMM test to ensure that calculated values are the same.
+    if testADMM:
+        t0 = time.time()
+        gvx.Solve(useADMM=True)
+        t1 = time.time()
+        print 'ADMM Solution [%.4f seconds]' % (t1 - t0)
+        gvx.PrintSolution()
+        gvx.PrintSolution('test4-ADMM.out')
+
+    t0 = time.time()
+    gvx.Solve(useADMM=False)
+    t1 = time.time()
+    print 'Serial Solution [%.4f seconds]' % (t1 - t0)
+    print gvx.status, gvx.value
+    gvx.PrintSolution()
+    gvx.PrintSolution('test4-serial.out')
+
+def objective_node_func_4(d):
+    x = Variable(name='x')
+    nid = int(d[0])
+    if nid == 1:
+        return square(x + int(d[1]))
+    elif nid == 2:
+        return abs(x + int(d[1]))
+
+def objective_edge_func_4(src, dst):
+    return square(norm(src['x'] - dst['x']))
+
+
+# Simple test on a graph with 2 nodes and 1 edge using bulk loading and multiple variables
+# Node 1: objective = x1^2 + |y1 + 4|
+# Node 2: objective = (x2 + 3)^2 + |y2 + 6|
+# Edge: objective = ||x1 - 2*y1 + x2 - 2*y2||^2
+# Constraints: y1 > -5, y2 > -100
+#
+# Expect optimal status with a value of 3.3125
+# x1 = -0.25, y1 = -4.67, x2 = -2.75, y2 = -3.55
+def test5(testADMM=False):
+    gvx = LoadEdgeList('test5.edges')
+    gvx.AddNodeObjectives('test5.csv', objective_node_func_5, nodeIDs=[1,2])
+    gvx.AddEdgeObjectives(objective_edge_func_5)
+
+    # ADMM test to ensure that calculated values are the same.
+    if testADMM:
+        t0 = time.time()
+        gvx.Solve(useADMM=True)
+        t1 = time.time()
+        print 'ADMM Solution [%.4f seconds]' % (t1 - t0)
+        gvx.PrintSolution()
+        gvx.PrintSolution('test4-ADMM.out')
+
+    t0 = time.time()
+    gvx.Solve(useADMM=False)
+    t1 = time.time()
+    print 'Serial Solution [%.4f seconds]' % (t1 - t0)
+    print gvx.status, gvx.value
+    gvx.PrintSolution()
+    gvx.PrintSolution('test4-serial.out')
+
+def objective_node_func_5(d):
+    x = Variable(name='x')
+    y = Variable(name='y')
+    obj = square(x + int(d[0])) + abs(y + int(d[1]))
+    constraints = []
+    return (obj, constraints)
+
+def objective_edge_func_5(src, dst):
+    return square(norm(src['x'] - dst['x'] + 2 * src['y'] - 2 * dst['y']))
+
+
 def main():
     print '*************** TEST 1 ***************'
     # test1(testADMM=testADMM)
@@ -190,7 +248,9 @@ def main():
     print '*************** TEST 3 ***************'
     # test3(testADMM=testADMM)
     print '*************** TEST 4 ***************'
-    test4(testADMM=testADMM)
+    # test4(testADMM=testADMM)
+    print '*************** TEST 5 ***************'
+    # test5(testADMM=testADMM)
     print '**************** Done ****************'
 
 if __name__ == "__main__":
