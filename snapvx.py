@@ -39,6 +39,10 @@ class TGraphVX(TUNGraph):
     # node_values points to the numpy array containing the value of the entire
     #     variable space corresponding to then node. Use the offset to get the
     #     value for a specific variable.
+    #
+    # Constructor
+    # If Graph is a Snap.py graph, initializes a SnapVX graph with the same
+    # nodes and edges.
     def __init__(self, Graph=None):
         self.node_objectives = {}
         self.node_variables = {}
@@ -46,13 +50,14 @@ class TGraphVX(TUNGraph):
         self.edge_objectives = {}
         self.edge_constraints = {}
         self.node_values = {}
-        Nodes = 0
-        Edges = 0
-        if Graph != None:
-            Nodes = Graph.GetNodes()
-            Edges = Graph.GetEdges()
 
-        TUNGraph.__init__(self, Nodes, Edges)
+        nodes = 0
+        edges = 0
+        if Graph != None:
+            nodes = Graph.GetNodes()
+            edges = Graph.GetEdges()
+
+        TUNGraph.__init__(self, nodes, edges)
 
         # Support for constructor with Snap.py graph argument
         if Graph != None:

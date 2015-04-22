@@ -16,7 +16,7 @@ testADMM = True
 # Expect optimal status with a value of 2.5
 # x1 = -0.5, x2 = -1
 def test1(testADMM=False):
-    gvx = TGraphVX(2, 1)
+    gvx = TGraphVX()
     x1 = Variable(name='x')
     x2 = Variable(name='x')
     objNode1 = square(x1)
@@ -56,11 +56,11 @@ def test2(testADMM=False):
     num_nodes = 100
     num_edges = 300
     n = 10
-    gvx = TGraphVX(num_nodes, num_edges)
+    gvx = TGraphVX()
 
     # Add nodes to graph.
     for i in xrange(1, num_nodes + 1):
-        x = Variable(n)
+        x = Variable(n, name='x')
         a = numpy.random.randn(n)
         objective = square(norm(x - a))
         gvx.AddNode(i, objective)
@@ -72,8 +72,8 @@ def test2(testADMM=False):
         nid2 = random.randint(2, num_nodes)
         if nid1 == nid2 or (gvx.IsEdge(nid1, nid2)):
             continue
-        x1 = gvx.GetNodeVariable(nid1)
-        x2 = gvx.GetNodeVariable(nid2)
+        x1 = gvx.GetNodeVariables(nid1)['x']
+        x2 = gvx.GetNodeVariables(nid2)['x']
         objective = square(norm(x1 - x2))
         gvx.AddEdge(nid1, nid2, objective)
 
@@ -111,11 +111,11 @@ def test3(testADMM=False):
     num_nodes = 1000
     num_edges = 5000
     n = 1000
-    gvx = TGraphVX(num_nodes, num_edges)
+    gvx = TGraphVX()
 
     # Add nodes to graph.
     for i in xrange(1, num_nodes + 1):
-        x = Variable(n)
+        x = Variable(n, name='x')
         a = numpy.random.randn(n)
         objective = square(norm(x - a))
         gvx.AddNode(i, objective, x)
@@ -128,8 +128,8 @@ def test3(testADMM=False):
         while nid1 == nid2 or (gvx.IsEdge(nid1, nid2)):
             nid1 = random.randint(1, num_nodes)
             nid2 = random.randint(2, num_nodes)
-        x1 = gvx.GetNodeVariable(nid1)
-        x2 = gvx.GetNodeVariable(nid2)
+        x1 = gvx.GetNodeVariables(nid1)['x']
+        x2 = gvx.GetNodeVariables(nid2)['x']
         objective = square(norm(x1 - x2))
         gvx.AddEdge(nid1, nid2, objective)
     print 'G(%d,%d)' % (gvx.GetNodes(), gvx.GetEdges())
