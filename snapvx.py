@@ -24,7 +24,7 @@ def LoadEdgeList(filename):
 
 class TGraphVX(TUNGraph):
 
-    __default_objective = Minimize(0)
+    __default_objective = norm(0)
     __default_constraints = []
 
     # node_objectives  = {int NId : CVXPY Expression}
