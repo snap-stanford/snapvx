@@ -4,7 +4,7 @@ from snapvx import *
 #Takes in a row from the CSV file, returns an optimization problem
 def node_obj(data):
 	x = Variable(1,name='x')
-	return norm(x + float(data[0]))
+	return norm(x - float(data[0]))
 
 #Helper function for edge objective
 def laplace_reg(src, dst):
@@ -15,8 +15,8 @@ gvx = LoadEdgeList('BulkLoadEdges.edges')
 
 #Bulk Load node objectives:
 #Takes one row of the CSV, uses that as input to node_obj
-#The last input is an (optional) way of specifying which nodes each row of the CSV refers to
-gvx.AddNodeObjectives('BulkLoadData.csv', node_obj, nodeIDs=[1,2])
+#There is also an (optional) input of specifying which nodes each row of the CSV refers to
+gvx.AddNodeObjectives('BulkLoadData.csv', node_obj)
 
 #Bulk load edge objectives for all edges
 gvx.AddEdgeObjectives(laplace_reg)
