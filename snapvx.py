@@ -104,12 +104,15 @@ class TGraphVX(TUNGraph):
         for i in xrange(TUNGraph.GetNodes(self)):
             nid = ni.GetId()
             variables = self.node_variables[nid]
-            value = numpy.array([])
+            value = None
             for (varID, varName, var, offset) in variables:
-                val = var.value
+                val = numpy.transpose(var.value)
                 if var.size[0] == 1:
                     val = numpy.array([val])
-                value = numpy.concatenate((value, val))
+                if value == None:
+                    value = val
+                else:
+                    value = numpy.concatenate((value, val))
             self.node_values[nid] = value
             ni.Next()
 

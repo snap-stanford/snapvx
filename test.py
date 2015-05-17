@@ -87,7 +87,7 @@ def test2(testADMM=False):
         t1 = time.time()
         print 'ADMM Solution [%.4f seconds]' % (t1 - t0)
         for nid in testNIds:
-            print nid, gvx.GetNodeValue(nid)
+            print nid, gvx.GetNodeValue(nid, 'x')
         gvx.PrintSolution('test2-ADMM.out')
 
     t0 = time.time()
@@ -96,7 +96,7 @@ def test2(testADMM=False):
     print 'Serial Solution [%.4f seconds]' % (t1 - t0)
     print 'G(%d,%d)' % (gvx.GetNodes(), gvx.GetEdges()), gvx.status, gvx.value
     for nid in testNIds:
-        print nid, gvx.GetNodeValue(nid)
+        print nid, gvx.GetNodeValue(nid, 'x')
     gvx.PrintSolution('test2-serial.out')
 
 
@@ -144,7 +144,7 @@ def test3(testADMM=False):
         t1 = time.time()
         print 'ADMM Solution [%.4f seconds]' % (t1 - t0)
         for nid in testNIds:
-            print nid, gvx.GetNodeValue(nid)
+            print nid, gvx.GetNodeValue(nid, 'x')
         gvx.PrintSolution('test3-ADMM.out')
 
     t0 = time.time()
@@ -153,7 +153,7 @@ def test3(testADMM=False):
     print 'Serial Solution [%.4f seconds]' % (t1 - t0)
     print 'G(%d,%d)' % (gvx.GetNodes(), gvx.GetEdges()), gvx.status, gvx.value
     for nid in testNIds:
-        print nid, gvx.GetNodeValue(nid)
+        print nid, gvx.GetNodeValue(nid, 'x')
     gvx.PrintSolution('test3-serial.out')
 
 
@@ -245,13 +245,13 @@ def main():
     print '*************** TEST 1 ***************'
     # test1(testADMM=testADMM)
     print '*************** TEST 2 ***************'
-    test2(testADMM=testADMM)
+    # test2(testADMM=testADMM)
     print '*************** TEST 3 ***************'
     # test3(testADMM=testADMM)
     print '*************** TEST 4 ***************'
-    test4(testADMM=testADMM)
+    # test4(testADMM=testADMM)
     print '*************** TEST 5 ***************'
-    test5(testADMM=testADMM)
+    # test5(testADMM=testADMM)
     print '**************** Done ****************'
 
 if __name__ == "__main__":
