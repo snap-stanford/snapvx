@@ -220,7 +220,7 @@ def test5(testADMM=False):
         t1 = time.time()
         print 'ADMM Solution [%.4f seconds]' % (t1 - t0)
         gvx.PrintSolution()
-        gvx.PrintSolution('test4-ADMM.out')
+        gvx.PrintSolution('test5-ADMM.out')
 
     t0 = time.time()
     gvx.Solve(useADMM=False)
@@ -228,7 +228,7 @@ def test5(testADMM=False):
     print 'Serial Solution [%.4f seconds]' % (t1 - t0)
     print gvx.status, gvx.value
     gvx.PrintSolution()
-    gvx.PrintSolution('test4-serial.out')
+    gvx.PrintSolution('test5-serial.out')
 
 def objective_node_func_5(d):
     x = Variable(name='x')
@@ -245,7 +245,7 @@ def main():
     print '*************** TEST 1 ***************'
     # test1(testADMM=testADMM)
     print '*************** TEST 2 ***************'
-    # test2(testADMM=testADMM)
+    test2(testADMM=testADMM)
     print '*************** TEST 3 ***************'
     # test3(testADMM=testADMM)
     print '*************** TEST 4 ***************'

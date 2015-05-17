@@ -2,8 +2,12 @@
 
 from snap import *
 from cvxpy import *
+
+import math
 from multiprocessing import *
 import numpy
+from scipy.sparse import lil_matrix
+import sys
 import time
 
 
@@ -110,10 +114,9 @@ class TGraphVX(TUNGraph):
             ni.Next()
 
     def __SolveADMM(self, rho_param):
-        global node_vals, edge_vals, rho, getValue
+        global node_vals, edge_z_vals, edge_u_vals, rho, getValue
 
         num_processors = 8
-        num_iterations = 50
         rho = rho_param
         print 'Solving with distributed ADMM (%d processors)' % num_processors
 
@@ -139,6 +142,7 @@ class TGraphVX(TUNGraph):
             length += size
             ni.Next()
         node_vals = Array('d', [0.0] * length)
+        x_length = length
 
         edge_list = []
         edge_info = {}
@@ -154,11 +158,9 @@ class TGraphVX(TUNGraph):
             info_i = node_info[etup[0]]
             info_j = node_info[etup[1]]
             ind_zij = length
-            length += info_i[X_LEN]
             ind_uij = length
             length += info_i[X_LEN]
             ind_zji = length
-            length += info_j[X_LEN]
             ind_uji = length
             length += info_j[X_LEN]
             tup = (etup, obj, con,\
@@ -168,7 +170,32 @@ class TGraphVX(TUNGraph):
             num_edges += 1
             edge_info[etup] = tup
             ei.Next()
-        edge_vals = Array('d', [0.0] * length)
+        edge_z_vals = Array('d', [0.0] * length)
+        edge_u_vals = Array('d', [0.0] * length)
+        z_length = length
+
+        # Populate sparse matrix A.
+        # A has dimensions (p, n), where p is the length of the stacked vector
+        # of node variables, and n is the length of the stacked z vector of
+        # edge variables.
+        # Each row of A has one 1. There is a 1 at (i,j) if z_i = x_j.
+        A = lil_matrix((z_length, x_length), dtype=numpy.int8)
+        ei = TUNGraph.BegEI(self)
+        for i in xrange(TUNGraph.GetEdges(self)):
+            etup = self.__GetEdgeTup(ei.GetSrcNId(), ei.GetDstNId())
+            info_edge = edge_info[etup]
+            info_i = node_info[etup[0]]
+            info_j = node_info[etup[1]]
+            for offset in xrange(info_i[X_LEN]):
+                row = info_edge[Z_ZIJIND] + offset
+                col = info_i[X_IND] + offset
+                A[row, col] = 1
+            for offset in xrange(info_j[X_LEN]):
+                row = info_edge[Z_ZJIIND] + offset
+                col = info_j[X_IND] + offset
+                A[row, col] = 1
+            ei.Next()
+        A_tr = A.transpose()
 
         node_list = []
         num_nodes = 0
@@ -186,12 +213,29 @@ class TGraphVX(TUNGraph):
             num_nodes += 1
 
         pool = Pool(num_processors)
-        # Keep track of total time for x-, z-, and u-updates
-        # Keep track of total time for solvers in x- and z-updates
-        # TODO: Stopping conditions.
-        for i in xrange(1, num_iterations + 1):
+        num_iterations = 0
+        z_old = getValue(edge_z_vals, 0, z_length)
+        while True:
+            # Check convergence criteria
+            if num_iterations != 0:
+                x = getValue(node_vals, 0, x_length)
+                z = getValue(edge_z_vals, 0, z_length)
+                u = getValue(edge_u_vals, 0, z_length)
+                stop = self.__CheckConvergence(A, A_tr, x, z, z_old, u, rho,\
+                                               x_length, z_length)
+                z_old = z
+                if stop: break
+                # Debugging information to see node values
+                # for entry in node_list:
+                #     nid = entry[X_NID]
+                #     index = entry[X_IND]
+                #     size = entry[X_LEN]
+                #     self.node_values[nid] = getValue(node_vals, index, size)
+                # self.PrintSolution()
+            num_iterations += 1
+
             # Debugging information prints current iteration #
-            print '..%d' % i
+            print '..%d' % num_iterations
             pool.map(ADMM_x, node_list)
             pool.map(ADMM_z, edge_list)
             pool.map(ADMM_u, edge_list)
@@ -206,6 +250,27 @@ class TGraphVX(TUNGraph):
         self.status = 'TODO'
         self.value = 'TODO'
 
+    # Returns True if convergence criteria have been satisfied
+    # eps_abs = eps_rel = 0.01
+    # r = Ax - z
+    # s = rho * (A^T)(z - z_old)
+    # e_pri = sqrt(p) * e_abs + e_rel * max(||Ax||, ||z||)
+    # e_dual = sqrt(n) * e_abs + e_rel * ||rho * (A^T)u||
+    # True if (||r|| <= e_pri) and (||s|| <= e_dual)
+    def __CheckConvergence(self, A, A_tr, x, z, z_old, u, rho, p, n):
+        norm = numpy.linalg.norm
+        e_abs = 0.01
+        e_rel = 0.01
+        Ax = A.dot(x)
+        r = Ax - z
+        s = rho * A_tr.dot(z - z_old)
+        e_pri = math.sqrt(p) * e_abs + e_rel * max(norm(Ax), norm(z))
+        e_dual = math.sqrt(n) * e_abs + e_rel * norm(rho * A_tr.dot(u))
+        # Debugging information to print convergence criteria values
+        # print 'r', norm(r), e_pri
+        # print 's', norm(s), e_dual
+        return (norm(r) <= e_pri) and (norm(s) < e_dual)
+
     # API to get node variable value after solving with ADMM.
     def GetNodeValue(self, NId, name):
         self.__VerifyNId(NId)
@@ -219,27 +284,17 @@ class TGraphVX(TUNGraph):
     # Prints value of all node variables to console or file, if given
     def PrintSolution(self, filename=None):
         numpy.set_printoptions(linewidth=numpy.inf)
-        if filename == None:
-            ni = TUNGraph.BegNI(self)
-            for i in xrange(TUNGraph.GetNodes(self)):
-                nid = ni.GetId()
-                print 'Node %d:' % nid
-                for (varID, varName, var, offset) in self.node_variables[nid]:
-                    val = numpy.transpose(self.GetNodeValue(nid, varName))
-                    print ' ', varName, val
-                ni.Next()
-        else:
-            outfile = open(filename, 'w+')
-            ni = TUNGraph.BegNI(self)
-            for i in xrange(TUNGraph.GetNodes(self)):
-                nid = ni.GetId()
-                s = 'Node %d:\n' % nid
-                outfile.write(s)
-                for (varID, varName, var, offset) in self.node_variables[nid]:
-                    val = numpy.transpose(self.GetNodeValue(nid, varName))
-                    s = '  %s %s\n' % (varName, str(val))
-                    outfile.write(s)
-                ni.Next()
+        out = sys.stdout if (filename == None) else open(filename, 'w+')
+        ni = TUNGraph.BegNI(self)
+        for i in xrange(TUNGraph.GetNodes(self)):
+            nid = ni.GetId()
+            s = 'Node %d:\n' % nid
+            out.write(s)
+            for (varID, varName, var, offset) in self.node_variables[nid]:
+                val = numpy.transpose(self.GetNodeValue(nid, varName))
+                s = '  %s %s\n' % (varName, str(val))
+                out.write(s)
+            ni.Next()
 
 
     # Helper method to verify existence of an NId.
@@ -398,7 +453,7 @@ class TGraphVX(TUNGraph):
             ei.Next()
 
 
-## ADMM Variables and Functions ##
+## ADMM Global Variables and Functions ##
 
 # Node ID, CVXPY Objective, CVXPY Variables, CVXPY Constraints,
 #   Starting index into node_vals, Length of all variables, Node degree
@@ -408,7 +463,8 @@ class TGraphVX(TUNGraph):
     Z_JVARS, Z_JLEN, Z_XJIND, Z_ZJIIND, Z_UJIIND) = range(13)
 
 node_vals = None
-edge_vals = None
+edge_z_vals = None
+edge_u_vals = None
 rho = 1.0
 
 def getValue(arr, index, size):
@@ -441,8 +497,8 @@ def ADMM_x(entry):
         ui = entry[u_index]
         # Add norm for each variable corresponding to the node
         for (varID, varName, var, offset) in variables:
-            z = getValue(edge_vals, zi + offset, var.size[0])
-            u = getValue(edge_vals, ui + offset, var.size[0])
+            z = getValue(edge_z_vals, zi + offset, var.size[0])
+            u = getValue(edge_u_vals, ui + offset, var.size[0])
             norms += square(norm(var - z + u))
 
     objective = entry[X_OBJ] + (rho / 2) * norms
@@ -463,34 +519,34 @@ def ADMM_z(entry):
     variables_i = entry[Z_IVARS]
     for (varID, varName, var, offset) in variables_i:
         x_i = getValue(node_vals, entry[Z_XIIND] + offset, var.size[0])
-        u_ij = getValue(edge_vals, entry[Z_UIJIND] + offset, var.size[0])
+        u_ij = getValue(edge_u_vals, entry[Z_UIJIND] + offset, var.size[0])
         norms += square(norm(x_i - var + u_ij))
 
     variables_j = entry[Z_JVARS]
     for (varID, varName, var, offset) in variables_j:
         x_j = getValue(node_vals, entry[Z_XJIND] + offset, var.size[0])
-        u_ji = getValue(edge_vals, entry[Z_UJIIND] + offset, var.size[0])
+        u_ji = getValue(edge_u_vals, entry[Z_UJIIND] + offset, var.size[0])
         norms += square(norm(x_j - var + u_ji))
 
     objective = Minimize(objective + (rho / 2) * norms)
     problem = Problem(objective, constraints)
     problem.solve()
 
-    writeObjective(edge_vals, entry[Z_ZIJIND], objective, variables_i)
-    writeObjective(edge_vals, entry[Z_ZJIIND], objective, variables_j)
+    writeObjective(edge_z_vals, entry[Z_ZIJIND], objective, variables_i)
+    writeObjective(edge_z_vals, entry[Z_ZJIIND], objective, variables_j)
     return None
 
 def ADMM_u(entry):
     global rho
     size_i = entry[Z_ILEN]
-    uij = getValue(edge_vals, entry[Z_UIJIND], size_i) +\
+    uij = getValue(edge_u_vals, entry[Z_UIJIND], size_i) +\
           getValue(node_vals, entry[Z_XIIND], size_i) -\
-          getValue(edge_vals, entry[Z_ZIJIND], size_i)
-    writeValue(edge_vals, entry[Z_UIJIND], uij, size_i)
+          getValue(edge_z_vals, entry[Z_ZIJIND], size_i)
+    writeValue(edge_u_vals, entry[Z_UIJIND], uij, size_i)
 
     size_j = entry[Z_JLEN]
-    uji = getValue(edge_vals, entry[Z_UJIIND], size_j) +\
+    uji = getValue(edge_u_vals, entry[Z_UJIIND], size_j) +\
           getValue(node_vals, entry[Z_XJIND], size_j) -\
-          getValue(edge_vals, entry[Z_ZJIIND], size_j)
-    writeValue(edge_vals, entry[Z_UJIIND], uji, size_j)
+          getValue(edge_z_vals, entry[Z_ZJIIND], size_j)
+    writeValue(edge_u_vals, entry[Z_UJIIND], uji, size_j)
     return entry
