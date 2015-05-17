@@ -199,7 +199,8 @@ def objective_edge_func_4(src, dst):
     return square(norm(src['x'] - dst['x']))
 
 
-# Simple test on a graph with 2 nodes and 1 edge using bulk loading and multiple variables
+# Simple test on a graph with 2 nodes and 1 edge using bulk loading and
+# multiple variables
 # Node 1: objective = x1^2 + |y1 + 4|
 # Node 2: objective = (x2 + 3)^2 + |y2 + 6|
 # Edge: objective = ||x1 - 2*y1 + x2 - 2*y2||^2
@@ -248,9 +249,9 @@ def main():
     print '*************** TEST 3 ***************'
     # test3(testADMM=testADMM)
     print '*************** TEST 4 ***************'
-    # test4(testADMM=testADMM)
+    test4(testADMM=testADMM)
     print '*************** TEST 5 ***************'
-    # test5(testADMM=testADMM)
+    test5(testADMM=testADMM)
     print '**************** Done ****************'
 
 if __name__ == "__main__":
