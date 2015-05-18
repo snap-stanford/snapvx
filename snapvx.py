@@ -70,6 +70,21 @@ class TGraphVX(TUNGraph):
             for ei in Graph.Edges():
                 self.AddEdge(ei.GetSrcNId(), ei.GetDstNId())
 
+    # Simple iterator to iterator over all nodes in graph. Similar in
+    # functionality to Nodes() iterator of PUNGraph in Snapy.py.
+    def Nodes(self):
+        ni = TUNGraph.BegNI(self)
+        for i in xrange(TUNGraph.GetNodes(self)):
+            yield ni
+            ni.Next()
+
+    # Simple iterator to iterator over all edge in graph. Similar in
+    # functionality to Edges() iterator of PUNGraph in Snapy.py.
+    def Edges(self):
+        ei = TUNGraph.BegEI(self)
+        for i in xrange(TUNGraph.GetEdges(self)):
+            yield ei
+            ei.Next()
 
     # Iterates through all nodes and edges. Currently adds objectives together.
     # Option of specifying Maximize() or the default Minimize().
@@ -82,26 +97,21 @@ class TGraphVX(TUNGraph):
             return
         objective = 0
         constraints = []
-        ni = TUNGraph.BegNI(self)
-        for i in xrange(TUNGraph.GetNodes(self)):
+        for ni in self.Nodes():
             nid = ni.GetId()
             objective += self.node_objectives[nid]
             constraints += self.node_constraints[nid]
-            ni.Next()
-        ei = TUNGraph.BegEI(self)
-        for i in xrange(TUNGraph.GetEdges(self)):
+        for ei in self.Edges():
             etup = self.__GetEdgeTup(ei.GetSrcNId(), ei.GetDstNId())
             objective += self.edge_objectives[etup]
             constraints += self.edge_constraints[etup]
-            ei.Next()
         objective = M(objective)
         problem = Problem(objective, constraints)
         problem.solve()
         self.status = problem.status
         self.value = problem.value
         # Insert into hash to match ADMMDistributed() output
-        ni = TUNGraph.BegNI(self)
-        for i in xrange(TUNGraph.GetNodes(self)):
+        for ni in self.Nodes():
             nid = ni.GetId()
             variables = self.node_variables[nid]
             value = None
@@ -114,7 +124,6 @@ class TGraphVX(TUNGraph):
                 else:
                     value = numpy.concatenate((value, val))
             self.node_values[nid] = value
-            ni.Next()
 
     def __SolveADMM(self, rho_param):
         global node_vals, edge_z_vals, edge_u_vals, rho, getValue
@@ -125,8 +134,7 @@ class TGraphVX(TUNGraph):
 
         node_info = {}
         length = 0
-        ni = TUNGraph.BegNI(self)
-        for i in xrange(TUNGraph.GetNodes(self)):
+        for ni in self.Nodes():
             nid = ni.GetId()
             deg = ni.GetDeg()
             obj = self.node_objectives[nid]
@@ -143,7 +151,6 @@ class TGraphVX(TUNGraph):
             node_info[nid] = (nid, obj, variables, con, length, size, deg,\
                 neighbors)
             length += size
-            ni.Next()
         node_vals = Array('d', [0.0] * length)
         x_length = length
 
@@ -151,8 +158,7 @@ class TGraphVX(TUNGraph):
         edge_info = {}
         length = 0
         num_edges = 0
-        ei = TUNGraph.BegEI(self)
-        for i in xrange(TUNGraph.GetEdges(self)):
+        for ei in self.Edges():
             etup = self.__GetEdgeTup(ei.GetSrcNId(), ei.GetDstNId())
             obj = self.edge_objectives[etup]
             con = self.edge_constraints[etup]
@@ -172,7 +178,6 @@ class TGraphVX(TUNGraph):
             edge_list.append(tup)
             num_edges += 1
             edge_info[etup] = tup
-            ei.Next()
         edge_z_vals = Array('d', [0.0] * length)
         edge_u_vals = Array('d', [0.0] * length)
         z_length = length
@@ -183,8 +188,7 @@ class TGraphVX(TUNGraph):
         # edge variables.
         # Each row of A has one 1. There is a 1 at (i,j) if z_i = x_j.
         A = lil_matrix((z_length, x_length), dtype=numpy.int8)
-        ei = TUNGraph.BegEI(self)
-        for i in xrange(TUNGraph.GetEdges(self)):
+        for ei in self.Edges():
             etup = self.__GetEdgeTup(ei.GetSrcNId(), ei.GetDstNId())
             info_edge = edge_info[etup]
             info_i = node_info[etup[0]]
@@ -197,7 +201,6 @@ class TGraphVX(TUNGraph):
                 row = info_edge[Z_ZJIIND] + offset
                 col = info_j[X_IND] + offset
                 A[row, col] = 1
-            ei.Next()
         A_tr = A.transpose()
 
         node_list = []
@@ -288,8 +291,7 @@ class TGraphVX(TUNGraph):
     def PrintSolution(self, filename=None):
         numpy.set_printoptions(linewidth=numpy.inf)
         out = sys.stdout if (filename == None) else open(filename, 'w+')
-        ni = TUNGraph.BegNI(self)
-        for i in xrange(TUNGraph.GetNodes(self)):
+        for ni in self.Nodes():
             nid = ni.GetId()
             s = 'Node %d:\n' % nid
             out.write(s)
@@ -297,8 +299,6 @@ class TGraphVX(TUNGraph):
                 val = numpy.transpose(self.GetNodeValue(nid, varName))
                 s = '  %s %s\n' % (varName, str(val))
                 out.write(s)
-            ni.Next()
-
 
     # Helper method to verify existence of an NId.
     def __VerifyNId(self, NId):
@@ -439,8 +439,7 @@ class TGraphVX(TUNGraph):
     # obj_func should return a tuple of (objective, constraints), although
     #     it will assume a singleton object will be an objective
     def AddEdgeObjectives(self, obj_func):
-        ei = TUNGraph.BegEI(self)
-        for i in xrange(TUNGraph.GetEdges(self)):
+        for ei in self.Edges():
             src_id = ei.GetSrcNId()
             src_vars = self.GetNodeVariables(src_id)
             dst_id = ei.GetDstNId()
@@ -453,7 +452,6 @@ class TGraphVX(TUNGraph):
             else:
                 # Singleton object = assume it is the objective
                 self.SetEdgeObjective(src_id, dst_id, ret)
-            ei.Next()
 
 
 ## ADMM Global Variables and Functions ##
