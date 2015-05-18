@@ -27,6 +27,14 @@ def test1(testADMM=False):
     objEdge = square(norm(x1 - x2))
     gvx.AddEdge(1, 2, objEdge)
 
+    t0 = time.time()
+    gvx.Solve(useADMM=False)
+    t1 = time.time()
+    print 'Serial Solution [%.4f seconds]' % (t1 - t0)
+    print gvx.status, gvx.value
+    gvx.PrintSolution()
+    gvx.PrintSolution('test1-serial.out')
+
     # ADMM test to ensure that calculated values are the same.
     if testADMM:
         t0 = time.time()
@@ -35,14 +43,6 @@ def test1(testADMM=False):
         print 'ADMM Solution [%.4f seconds]' % (t1 - t0)
         gvx.PrintSolution()
         gvx.PrintSolution('test1-ADMM.out')
-
-    t0 = time.time()
-    gvx.Solve(useADMM=False)
-    t1 = time.time()
-    print 'Serial Solution [%.4f seconds]' % (t1 - t0)
-    print gvx.status, gvx.value
-    gvx.PrintSolution()
-    gvx.PrintSolution('test1-serial.out')
 
 
 # Larger test on a graph with 100 nodes and approximately 300 edges.
@@ -243,7 +243,7 @@ def objective_edge_func_5(src, dst):
 
 def main():
     print '*************** TEST 1 ***************'
-    # test1(testADMM=testADMM)
+    test1(testADMM=testADMM)
     print '*************** TEST 2 ***************'
     # test2(testADMM=testADMM)
     print '*************** TEST 3 ***************'

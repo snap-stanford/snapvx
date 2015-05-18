@@ -54,6 +54,8 @@ class TGraphVX(TUNGraph):
         self.edge_objectives = {}
         self.edge_constraints = {}
         self.node_values = {}
+        self.status = None
+        self.value = None
 
         nodes = 0
         edges = 0
