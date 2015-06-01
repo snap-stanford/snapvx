@@ -16,6 +16,7 @@ testADMM = True
 # Expect optimal status with a value of 2.5
 # x1 = -0.5, x2 = -1
 def test1(testADMM=False):
+    printTest(1)
     gvx = TGraphVX()
     x1 = Variable(name='x')
     x2 = Variable(name='x')
@@ -27,6 +28,16 @@ def test1(testADMM=False):
     objEdge = square(norm(x1 - x2))
     gvx.AddEdge(1, 2, objEdge)
 
+    # ADMM test to ensure that calculated values are the same.
+    if testADMM:
+        t0 = time.time()
+        gvx.Solve(useADMM=True)
+        t1 = time.time()
+        print 'ADMM Solution [%.4f seconds]' % (t1 - t0)
+        print gvx.status, gvx.value
+        gvx.PrintSolution()
+        gvx.PrintSolution('test1-ADMM.out')
+
     t0 = time.time()
     gvx.Solve(useADMM=False)
     t1 = time.time()
@@ -35,15 +46,6 @@ def test1(testADMM=False):
     gvx.PrintSolution()
     gvx.PrintSolution('test1-serial.out')
 
-    # ADMM test to ensure that calculated values are the same.
-    if testADMM:
-        t0 = time.time()
-        gvx.Solve(useADMM=True)
-        t1 = time.time()
-        print 'ADMM Solution [%.4f seconds]' % (t1 - t0)
-        gvx.PrintSolution()
-        gvx.PrintSolution('test1-ADMM.out')
-
 
 # Larger test on a graph with 100 nodes and approximately 300 edges.
 # All vectors are in R^10.
@@ -51,6 +53,7 @@ def test1(testADMM=False):
 # Each edge {i,j}: objective = ||x_i - x_j||^2
 # No constraints.
 def test2(testADMM=False):
+    printTest(2)
     numpy.random.seed(1)
     random.seed(1)
     num_nodes = 100
@@ -86,6 +89,7 @@ def test2(testADMM=False):
         gvx.Solve(useADMM=True)
         t1 = time.time()
         print 'ADMM Solution [%.4f seconds]' % (t1 - t0)
+        print 'G(%d,%d)' % (gvx.GetNodes(), gvx.GetEdges()), gvx.status, gvx.value
         for nid in testNIds:
             print nid, gvx.GetNodeValue(nid, 'x')
         gvx.PrintSolution('test2-ADMM.out')
@@ -106,6 +110,7 @@ def test2(testADMM=False):
 # Each edge {i,j}: objective = ||x_i - x_j||^2
 # No constraints.
 def test3(testADMM=False):
+    printTest(3)
     numpy.random.seed(1)
     random.seed(1)
     num_nodes = 1000
@@ -143,6 +148,7 @@ def test3(testADMM=False):
         gvx.Solve(useADMM=True)
         t1 = time.time()
         print 'ADMM Solution [%.4f seconds]' % (t1 - t0)
+        print 'G(%d,%d)' % (gvx.GetNodes(), gvx.GetEdges()), gvx.status, gvx.value
         for nid in testNIds:
             print nid, gvx.GetNodeValue(nid, 'x')
         gvx.PrintSolution('test3-ADMM.out')
@@ -166,6 +172,7 @@ def test3(testADMM=False):
 # Expect optimal status with a value of 2.5
 # x1 = -0.5, x2 = -1
 def test4(testADMM=False):
+    printTest(4)
     gvx = LoadEdgeList('test4.edges')
     gvx.AddNodeObjectives('test4.csv', objective_node_func_4)
     gvx.AddEdgeObjectives(objective_edge_func_4)
@@ -176,6 +183,7 @@ def test4(testADMM=False):
         gvx.Solve(useADMM=True)
         t1 = time.time()
         print 'ADMM Solution [%.4f seconds]' % (t1 - t0)
+        print gvx.status, gvx.value
         gvx.PrintSolution()
         gvx.PrintSolution('test4-ADMM.out')
 
@@ -209,6 +217,7 @@ def objective_edge_func_4(src, dst):
 # Expect optimal status with a value of 3.3125
 # x1 = -0.25, y1 = -4.67, x2 = -2.75, y2 = -3.55
 def test5(testADMM=False):
+    printTest(5)
     gvx = LoadEdgeList('test5.edges')
     gvx.AddNodeObjectives('test5.csv', objective_node_func_5, nodeIDs=[1,2])
     gvx.AddEdgeObjectives(objective_edge_func_5)
@@ -219,6 +228,7 @@ def test5(testADMM=False):
         gvx.Solve(useADMM=True)
         t1 = time.time()
         print 'ADMM Solution [%.4f seconds]' % (t1 - t0)
+        print gvx.status, gvx.value
         gvx.PrintSolution()
         gvx.PrintSolution('test5-ADMM.out')
 
@@ -241,18 +251,75 @@ def objective_edge_func_5(src, dst):
     return square(norm(src['x'] - dst['x'] + 2 * src['y'] - 2 * dst['y']))
 
 
+# Medium test on a graph with 10 nodes and approximately 30 edges.
+# All vectors are in R^2.
+# Each node i: objective = ||x_i - a||^2 where a is randomly generated.
+# Each edge {i,j}: objective = ||x_i - x_j||^2
+# No constraints.
+def test6(testADMM=False):
+    printTest(6)
+    numpy.random.seed(10)
+    random.seed(10)
+    num_nodes = 10
+    num_edges = 30
+    n = 2
+    gvx = TGraphVX()
+
+    # Add nodes to graph.
+    for i in xrange(1, num_nodes + 1):
+        x = Variable(n, name='x')
+        a = numpy.random.randn(n)
+        objective = square(norm(x - a))
+        gvx.AddNode(i, objective)
+
+    # Add edges to graph by choosing two random nids. If nids are equal or
+    # the edge already exists, skip.
+    for i in xrange(1, num_edges + 1):
+        nid1 = random.randint(1, num_nodes)
+        nid2 = random.randint(2, num_nodes)
+        if nid1 == nid2 or (gvx.IsEdge(nid1, nid2)):
+            continue
+        x1 = gvx.GetNodeVariables(nid1)['x']
+        x2 = gvx.GetNodeVariables(nid2)['x']
+        objective = square(norm(x1 - x2))
+        gvx.AddEdge(nid1, nid2, objective)
+
+    # Solve and print results for sanity check.
+    testNIds = [5, 8]
+
+    # ADMM test to ensure that calculated values are the same.
+    if testADMM:
+        t0 = time.time()
+        gvx.Solve(useADMM=True, verbose=True)
+        t1 = time.time()
+        print 'ADMM Solution [%.4f seconds]' % (t1 - t0)
+        print 'G(%d,%d)' % (gvx.GetNodes(), gvx.GetEdges()), gvx.status, gvx.value
+        for nid in testNIds:
+            print nid, gvx.GetNodeValue(nid, 'x')
+        gvx.PrintSolution('test6-ADMM.out')
+
+    t0 = time.time()
+    gvx.Solve(useADMM=False)
+    t1 = time.time()
+    print 'Serial Solution [%.4f seconds]' % (t1 - t0)
+    print 'G(%d,%d)' % (gvx.GetNodes(), gvx.GetEdges()), gvx.status, gvx.value
+    for nid in testNIds:
+        print nid, gvx.GetNodeValue(nid, 'x')
+    gvx.PrintSolution('test6-serial.out')
+
+
+def printTest(num):
+    s = str(num)
+    if num < 10: s = '0' + s
+    print '*************** TEST %s ***************' % s
+
 def main():
-    print '*************** TEST 1 ***************'
-    test1(testADMM=testADMM)
-    print '*************** TEST 2 ***************'
+    # test1(testADMM=testADMM)
     # test2(testADMM=testADMM)
-    print '*************** TEST 3 ***************'
     # test3(testADMM=testADMM)
-    print '*************** TEST 4 ***************'
     # test4(testADMM=testADMM)
-    print '*************** TEST 5 ***************'
     # test5(testADMM=testADMM)
-    print '**************** Done ****************'
+    test6(testADMM=testADMM)
 
 if __name__ == "__main__":
     main()
