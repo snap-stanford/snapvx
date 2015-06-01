@@ -1,5 +1,8 @@
 ## snapvx Tests
 
+import sys
+sys.path.append('..')
+
 from snapvx import *
 import numpy
 import random
@@ -290,7 +293,7 @@ def test6(testADMM=False):
     # ADMM test to ensure that calculated values are the same.
     if testADMM:
         t0 = time.time()
-        gvx.Solve(useADMM=True, verbose=True)
+        gvx.Solve(useADMM=True)
         t1 = time.time()
         print 'ADMM Solution [%.4f seconds]' % (t1 - t0)
         print 'G(%d,%d)' % (gvx.GetNodes(), gvx.GetEdges()), gvx.status, gvx.value
@@ -319,7 +322,7 @@ def main():
     # test3(testADMM=testADMM)
     # test4(testADMM=testADMM)
     # test5(testADMM=testADMM)
-    test6(testADMM=testADMM)
+    # test6(testADMM=testADMM)
 
 if __name__ == "__main__":
     main()
