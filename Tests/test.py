@@ -29,7 +29,7 @@ def test1(testADMM=False):
     gvx.AddNode(2, objNode2)
 
     objEdge = square(norm(x1 - x2))
-    gvx.AddEdge(1, 2, objEdge)
+    gvx.AddEdge(1, 2, Objective=objEdge)
 
     # ADMM test to ensure that calculated values are the same.
     if testADMM:
@@ -81,7 +81,7 @@ def test2(testADMM=False):
         x1 = gvx.GetNodeVariables(nid1)['x']
         x2 = gvx.GetNodeVariables(nid2)['x']
         objective = square(norm(x1 - x2))
-        gvx.AddEdge(nid1, nid2, objective)
+        gvx.AddEdge(nid1, nid2, Objective=objective)
 
     # Solve and print results for sanity check.
     testNIds = [5, 33, 41, 68, 97]
@@ -139,7 +139,7 @@ def test3(testADMM=False):
         x1 = gvx.GetNodeVariables(nid1)['x']
         x2 = gvx.GetNodeVariables(nid2)['x']
         objective = square(norm(x1 - x2))
-        gvx.AddEdge(nid1, nid2, objective)
+        gvx.AddEdge(nid1, nid2, Objective=objective)
     print 'G(%d,%d)' % (gvx.GetNodes(), gvx.GetEdges())
 
     # Solve and print results for sanity check.
@@ -282,10 +282,7 @@ def test6(testADMM=False):
         nid2 = random.randint(2, num_nodes)
         if nid1 == nid2 or (gvx.IsEdge(nid1, nid2)):
             continue
-        x1 = gvx.GetNodeVariables(nid1)['x']
-        x2 = gvx.GetNodeVariables(nid2)['x']
-        objective = square(norm(x1 - x2))
-        gvx.AddEdge(nid1, nid2, objective)
+        gvx.AddEdge(nid1, nid2, Objective_Func=objective_edge_func_6)
 
     # Solve and print results for sanity check.
     testNIds = [5, 8]
@@ -309,6 +306,9 @@ def test6(testADMM=False):
     for nid in testNIds:
         print nid, gvx.GetNodeValue(nid, 'x')
     gvx.PrintSolution('test6-serial.out')
+
+def objective_edge_func_6(src, dst):
+    return square(norm(src['x'] - dst['x']))
 
 
 def printTest(num):

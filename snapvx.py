@@ -4,7 +4,7 @@ from snap import *
 from cvxpy import *
 
 import math
-from multiprocessing import *
+import multiprocessing
 import numpy
 from scipy.sparse import lil_matrix
 import sys
@@ -93,10 +93,12 @@ class TGraphVX(TUNGraph):
     # Option to use serial version or distributed ADMM.
     # Graph status and value properties will be set in serial version.
     # Individual variable values can always be retrieved using GetNodeValue().
-    def Solve(self, M=Minimize, useADMM=True, rho=1.0):
+    def Solve(self, M=Minimize, useADMM=True, rho=1.0, verbose=False):
         if useADMM:
-            self.__SolveADMM(rho)
+            self.__SolveADMM(rho, verbose)
             return
+        if verbose:
+            print 'Serial ADMM'
         objective = 0
         constraints = []
         for ni in self.Nodes():
@@ -121,18 +123,20 @@ class TGraphVX(TUNGraph):
                 val = numpy.transpose(var.value)
                 if var.size[0] == 1:
                     val = numpy.array([val])
-                if value == None:
+                if not value:
                     value = val
                 else:
                     value = numpy.concatenate((value, val))
             self.node_values[nid] = value
 
-    def __SolveADMM(self, rho_param):
-        global node_vals, edge_z_vals, edge_u_vals, rho, getValue
+    def __SolveADMM(self, rho_param, verbose=False):
+        global node_vals, edge_z_vals, edge_u_vals, rho
+        global getValue, rho_update_func
 
-        num_processors = 8
+        num_processors = multiprocessing.cpu_count()
         rho = rho_param
-        print 'Solving with distributed ADMM (%d processors)' % num_processors
+        if verbose:
+            print 'Distributed ADMM (%d processors)' % num_processors
 
         node_info = {}
         length = 0
@@ -153,7 +157,7 @@ class TGraphVX(TUNGraph):
             node_info[nid] = (nid, obj, variables, con, length, size, deg,\
                 neighbors)
             length += size
-        node_vals = Array('d', [0.0] * length)
+        node_vals = multiprocessing.Array('d', [0.0] * length)
         x_length = length
 
         edge_list = []
@@ -180,8 +184,8 @@ class TGraphVX(TUNGraph):
             edge_list.append(tup)
             num_edges += 1
             edge_info[etup] = tup
-        edge_z_vals = Array('d', [0.0] * length)
-        edge_u_vals = Array('d', [0.0] * length)
+        edge_z_vals = multiprocessing.Array('d', [0.0] * length)
+        edge_u_vals = multiprocessing.Array('d', [0.0] * length)
         z_length = length
 
         # Populate sparse matrix A.
@@ -220,7 +224,7 @@ class TGraphVX(TUNGraph):
             node_list.append(entry)
             num_nodes += 1
 
-        pool = Pool(num_processors)
+        pool = multiprocessing.Pool(num_processors)
         num_iterations = 0
         z_old = getValue(edge_z_vals, 0, z_length)
         while True:
@@ -230,20 +234,19 @@ class TGraphVX(TUNGraph):
                 z = getValue(edge_z_vals, 0, z_length)
                 u = getValue(edge_u_vals, 0, z_length)
                 stop = self.__CheckConvergence(A, A_tr, x, z, z_old, u, rho,\
-                                               x_length, z_length)
-                z_old = z
+                                               x_length, z_length, verbose)
                 if stop: break
-                # Debugging information to see node values
-                # for entry in node_list:
-                #     nid = entry[X_NID]
-                #     index = entry[X_IND]
-                #     size = entry[X_LEN]
-                #     self.node_values[nid] = getValue(node_vals, index, size)
-                # self.PrintSolution()
+                z_old = z
+                # Update rho and scale u-values
+                rho_new = rho_update_func(rho)
+                scale = float(rho) / rho_new
+                edge_u_vals[:] = [i * scale for i in edge_u_vals]
+                rho = rho_new
             num_iterations += 1
 
-            # Debugging information prints current iteration #
-            print '..%d' % num_iterations
+            if verbose:
+                # Debugging information prints current iteration #
+                print 'Iteration %d' % num_iterations
             pool.map(ADMM_x, node_list)
             pool.map(ADMM_z, edge_list)
             pool.map(ADMM_u, edge_list)
@@ -255,8 +258,24 @@ class TGraphVX(TUNGraph):
             index = entry[X_IND]
             size = entry[X_LEN]
             self.node_values[nid] = getValue(node_vals, index, size)
-        self.status = 'TODO'
-        self.value = 'TODO'
+        self.status = 'optimal'
+        self.value = self.__GetTotalProblemValue()
+
+    # Iterate through all variables and update values.
+    # Sum all objective values over all nodes and edges.
+    def __GetTotalProblemValue(self):
+        global getValue
+        result = 0.0
+        for ni in self.Nodes():
+            nid = ni.GetId()
+            for (varID, varName, var, offset) in self.node_variables[nid]:
+                var.value = self.GetNodeValue(nid, varName)
+        for ni in self.Nodes():
+            result += self.node_objectives[ni.GetId()].value
+        for ei in self.Edges():
+            etup = self.__GetEdgeTup(ei.GetSrcNId(), ei.GetDstNId())
+            result += self.edge_objectives[etup].value
+        return result
 
     # Returns True if convergence criteria have been satisfied
     # eps_abs = eps_rel = 0.01
@@ -265,7 +284,7 @@ class TGraphVX(TUNGraph):
     # e_pri = sqrt(p) * e_abs + e_rel * max(||Ax||, ||z||)
     # e_dual = sqrt(n) * e_abs + e_rel * ||rho * (A^T)u||
     # True if (||r|| <= e_pri) and (||s|| <= e_dual)
-    def __CheckConvergence(self, A, A_tr, x, z, z_old, u, rho, p, n):
+    def __CheckConvergence(self, A, A_tr, x, z, z_old, u, rho, p, n, verbose):
         norm = numpy.linalg.norm
         e_abs = 0.01
         e_rel = 0.01
@@ -274,9 +293,12 @@ class TGraphVX(TUNGraph):
         s = rho * A_tr.dot(z - z_old)
         e_pri = math.sqrt(p) * e_abs + e_rel * max(norm(Ax), norm(z))
         e_dual = math.sqrt(n) * e_abs + e_rel * norm(rho * A_tr.dot(u))
-        # Debugging information to print convergence criteria values
-        # print 'r', norm(r), e_pri
-        # print 's', norm(s), e_dual
+        if verbose:
+            # Debugging information to print convergence criteria values
+            print '  r:', norm(r)
+            print '  e_pri:', e_pri
+            print '  s:', norm(s)
+            print '  e_dual:', e_dual
         return (norm(r) <= e_pri) and (norm(s) < e_dual)
 
     # API to get node variable value after solving with ADMM.
@@ -356,11 +378,32 @@ class TGraphVX(TUNGraph):
             raise Exception('Edge {%d,%d} does not exist.' % ETup)
 
     # Adds an Edge to the TUNGraph and stores the corresponding CVX information.
-    def AddEdge(self, SrcNId, DstNId, Objective=__default_objective,\
-            Constraints=__default_constraints):
+    # obj_func is a function which accepts two arguments, a dictionary of
+    #     variables for the source and destination nodes
+    #     { string varName : CVXPY Variable }
+    # obj_func should return a tuple of (objective, constraints), although
+    #     it will assume a singleton object will be an objective and will use
+    #     the default constraints.
+    # If obj_func is None, then will use Objective and Constraints, which are
+    #     parameters currently set to defaults.
+    def AddEdge(self, SrcNId, DstNId, Objective_Func=None,
+            Objective=__default_objective, Constraints=__default_constraints):
         ETup = self.__GetEdgeTup(SrcNId, DstNId)
-        self.edge_objectives[ETup] = Objective
-        self.edge_constraints[ETup] = Constraints
+        if Objective_Func != None:
+            src_vars = self.GetNodeVariables(SrcNId)
+            dst_vars = self.GetNodeVariables(DstNId)
+            ret = Objective_Func(src_vars, dst_vars)
+            if type(ret) is tuple:
+                # Tuple = assume we have (objective, constraints)
+                self.edge_objectives[ETup] = ret[0]
+                self.edge_constraints[ETup] = ret[1]
+            else:
+                # Singleton object = assume it is the objective
+                self.edge_objectives[ETup] = ret
+                self.edge_constraints[ETup] = self.__default_constraints
+        else:
+            self.edge_objectives[ETup] = Objective
+            self.edge_constraints[ETup] = Constraints
         return TUNGraph.AddEdge(self, SrcNId, DstNId)
 
     def SetEdgeObjective(self, SrcNId, DstNId, Objective=__default_objective):
@@ -402,8 +445,26 @@ class TGraphVX(TUNGraph):
     # in order, the node IDs that correspond to successive rows
     # If nodeIDs is None, then the file must have a column denoting the
     # node ID for each row. The index of this column (0-indexed) is idColumn.
-    def AddNodeObjectives(self, filename, obj_func, nodeIDs=None, idColumn=0):
+    def AddNodeObjectives(self, filename, obj_func, nodeIDs=None, idColumn=None):
         infile = open(filename, 'r')
+        if nodeIDs == None and idColumn == None:
+            stop = False
+            for ni in self.Nodes():
+                nid = ni.GetId()
+                while True:
+                    line = infile.readline()
+                    if line == '': stop = True
+                    if not line.startswith('#'): break
+                if stop: break
+                data = [x.strip() for x in line.split(',')]
+                ret = obj_func(data)
+                if type(ret) is tuple:
+                    # Tuple = assume we have (objective, constraints)
+                    self.SetNodeObjective(nid, ret[0])
+                    self.SetNodeConstraints(nid, ret[1])
+                else:
+                    # Singleton object = assume it is the objective
+                    self.SetNodeObjective(nid, ret)
         if nodeIDs == None:
             for line in infile:
                 if line.startswith('#'): continue
@@ -458,6 +519,23 @@ class TGraphVX(TUNGraph):
 
 ## ADMM Global Variables and Functions ##
 
+# By default, rho is 1.0. Default rho update is identity function.
+__default_rho = 1.0
+__default_rho_update_func = lambda rho: rho
+rho = __default_rho
+rho_update_func = __default_rho_update_func
+
+def SetRho(rho_new=None):
+    global rho
+    rho = rho_new if rho_new else __default_rho
+
+# Rho update function should take one parameter: old_rho
+# Returns new_rho
+# This function will be called at the end of every iteration
+def SetRhoUpdateFunc(f=None):
+    global rho_update_func
+    rho_update_func = f if f else __default_rho_update_func
+
 # Node ID, CVXPY Objective, CVXPY Variables, CVXPY Constraints,
 #   Starting index into node_vals, Length of all variables, Node degree
 (X_NID, X_OBJ, X_VARS, X_CON, X_IND, X_LEN, X_DEG, X_NEIGHBORS) = range(8)
@@ -468,7 +546,6 @@ class TGraphVX(TUNGraph):
 node_vals = None
 edge_z_vals = None
 edge_u_vals = None
-rho = 1.0
 
 def getValue(arr, index, size):
     return numpy.array(arr[index:(index + size)])
