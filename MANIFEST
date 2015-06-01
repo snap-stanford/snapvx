@@ -1,0 +1,7 @@
+setup.py
+snapvx.py
+Examples/BulkLoadData.csv
+Examples/BulkLoadEdges.edges
+Examples/BulkLoading.py
+Examples/HelloWorld.py
+Examples/LaplacianRegularization.py
