@@ -206,7 +206,7 @@ def objective_node_func_4(d):
     elif nid == 2:
         return abs(x + int(d[1]))
 
-def objective_edge_func_4(src, dst):
+def objective_edge_func_4(src, dst, data):
     return square(norm(src['x'] - dst['x']))
 
 
@@ -250,7 +250,7 @@ def objective_node_func_5(d):
     constraints = []
     return (obj, constraints)
 
-def objective_edge_func_5(src, dst):
+def objective_edge_func_5(src, dst, data):
     return square(norm(src['x'] - dst['x'] + 2 * src['y'] - 2 * dst['y']))
 
 
@@ -311,6 +311,43 @@ def objective_edge_func_6(src, dst):
     return square(norm(src['x'] - dst['x']))
 
 
+# Simple test on a graph with 3 nodes and 2 edges using edge bulk loading
+# Node i: (x_i - data)^2
+# Edge (i,j): objective = ||x_i - x_j + data||^2
+def test7(testADMM=False):
+    printTest(7)
+    gvx = LoadEdgeList('test7.edges')
+    gvx.AddNodeObjectives('test7-nodes.csv', objective_node_func_7)
+    gvx.AddEdgeObjectives(objective_edge_func_7, filename='test7-edges.csv')
+
+    # ADMM test to ensure that calculated values are the same.
+    if testADMM:
+        t0 = time.time()
+        gvx.Solve(useADMM=True)
+        t1 = time.time()
+        print 'ADMM Solution [%.4f seconds]' % (t1 - t0)
+        print gvx.status, gvx.value
+        gvx.PrintSolution()
+        gvx.PrintSolution('test7-ADMM.out')
+
+    t0 = time.time()
+    gvx.Solve(useADMM=False)
+    t1 = time.time()
+    print 'Serial Solution [%.4f seconds]' % (t1 - t0)
+    print gvx.status, gvx.value
+    gvx.PrintSolution()
+    gvx.PrintSolution('test7-serial.out')
+
+def objective_node_func_7(d):
+    x = Variable(name='x')
+    obj = square(x - int(d[0]))
+    constraints = []
+    return (obj, constraints)
+
+def objective_edge_func_7(src, dst, data):
+    return square(norm(src['x'] - dst['x'] + int(data[2])))
+
+
 def printTest(num):
     s = str(num)
     if num < 10: s = '0' + s
@@ -323,6 +360,7 @@ def main():
     # test4(testADMM=testADMM)
     # test5(testADMM=testADMM)
     # test6(testADMM=testADMM)
+    # test7(testADMM=testADMM)
 
 if __name__ == "__main__":
     main()

@@ -20,8 +20,10 @@ def LoadEdgeList(filename):
         [src, dst] = line.split()
         if int(src) not in nids:
             gvx.AddNode(int(src))
+            nids.add(int(src))
         if int(dst) not in nids:
             gvx.AddNode(int(dst))
+            nids.add(int(dst))
         gvx.AddEdge(int(src), int(dst))
     return gvx
 
@@ -444,10 +446,12 @@ class TGraphVX(TUNGraph):
     # Optional parameter nodeIDs allows the user to pass in a list specifying,
     # in order, the node IDs that correspond to successive rows
     # If nodeIDs is None, then the file must have a column denoting the
-    # node ID for each row. The index of this column (0-indexed) is idColumn.
-    def AddNodeObjectives(self, filename, obj_func, nodeIDs=None, idColumn=None):
+    # node ID for each row. The index of this column (0-indexed) is idCol.
+    # If nodeIDs and idCol are both None, then will iterate over all Nodes, in
+    # order, as long as the file lasts
+    def AddNodeObjectives(self, filename, obj_func, nodeIDs=None, idCol=None):
         infile = open(filename, 'r')
-        if nodeIDs == None and idColumn == None:
+        if nodeIDs == None and idCol == None:
             stop = False
             for ni in self.Nodes():
                 nid = ni.GetId()
@@ -472,11 +476,11 @@ class TGraphVX(TUNGraph):
                 ret = obj_func(data)
                 if type(ret) is tuple:
                     # Tuple = assume we have (objective, constraints)
-                    self.SetNodeObjective(int(data[idColumn]), ret[0])
-                    self.SetNodeConstraints(int(data[idColumn]), ret[1])
+                    self.SetNodeObjective(int(data[idCol]), ret[0])
+                    self.SetNodeConstraints(int(data[idCol]), ret[1])
                 else:
                     # Singleton object = assume it is the objective
-                    self.SetNodeObjective(int(data[idColumn]), ret)
+                    self.SetNodeObjective(int(data[idCol]), ret)
         else:
             for nid in nodeIDs:
                 while True:
@@ -496,25 +500,97 @@ class TGraphVX(TUNGraph):
         infile.close()
 
     # Bulk loading for edges
-    # obj_func is a function which accepts two arguments, a dictionary of
-    #     variables for the source and destination nodes
-    #     { string varName : CVXPY Variable }
+    # If filename is None:
+    # obj_func is a function which accepts three arguments, a dictionary of
+    #     variables for the source and destination nodes, and an unused param
+    #     { string varName : CVXPY Variable } x2, None
     # obj_func should return a tuple of (objective, constraints), although
     #     it will assume a singleton object will be an objective
-    def AddEdgeObjectives(self, obj_func):
-        for ei in self.Edges():
-            src_id = ei.GetSrcNId()
-            src_vars = self.GetNodeVariables(src_id)
-            dst_id = ei.GetDstNId()
-            dst_vars = self.GetNodeVariables(dst_id)
-            ret = obj_func(src_vars, dst_vars)
-            if type(ret) is tuple:
-                # Tuple = assume we have (objective, constraints)
-                self.SetEdgeObjective(src_id, dst_id, ret[0])
-                self.SetEdgeConstraints(src_id, dst_id, ret[1])
-            else:
-                # Singleton object = assume it is the objective
-                self.SetEdgeObjective(src_id, dst_id, ret)
+    # If filename exists:
+    # obj_func is the same, except the third param will be be an array of
+    #     strings parsed from the given CSV filename
+    # Optional parameter edgeIDs allows the user to pass in a list specifying,
+    # in order, the edgeIDs that correspond to successive rows. An edgeID is
+    # a tuple of (srcID, dstID).
+    # If edgeIDs is None, then the file may have columns denoting the srcID and
+    # dstID for each row. The indices of these columns are 0-indexed.
+    # If edgeIDs and id columns are None, then will iterate through all edges
+    # in order, as long as the file lasts.
+    def AddEdgeObjectives(self, obj_func, filename=None, edgeIDs=None,\
+            srcIdCol=None, dstIdCol=None):
+        if filename == None:
+            for ei in self.Edges():
+                src_id = ei.GetSrcNId()
+                src_vars = self.GetNodeVariables(src_id)
+                dst_id = ei.GetDstNId()
+                dst_vars = self.GetNodeVariables(dst_id)
+                ret = obj_func(src_vars, dst_vars, None)
+                if type(ret) is tuple:
+                    # Tuple = assume we have (objective, constraints)
+                    self.SetEdgeObjective(src_id, dst_id, ret[0])
+                    self.SetEdgeConstraints(src_id, dst_id, ret[1])
+                else:
+                    # Singleton object = assume it is the objective
+                    self.SetEdgeObjective(src_id, dst_id, ret)
+            return
+        infile = open(filename, 'r')
+        if edgeIDs == None and (srcIdCol == None or dstIdCol == None):
+            stop = False
+            for ei in self.Edges():
+                src_id = ei.GetSrcNId()
+                src_vars = self.GetNodeVariables(src_id)
+                dst_id = ei.GetDstNId()
+                dst_vars = self.GetNodeVariables(dst_id)
+                while True:
+                    line = infile.readline()
+                    if line == '': stop = True
+                    if not line.startswith('#'): break
+                if stop: break
+                data = [x.strip() for x in line.split(',')]
+                ret = obj_func(src_vars, dst_vars, data)
+                if type(ret) is tuple:
+                    # Tuple = assume we have (objective, constraints)
+                    self.SetEdgeObjective(src_id, dst_id, ret[0])
+                    self.SetEdgeConstraints(src_id, dst_id, ret[1])
+                else:
+                    # Singleton object = assume it is the objective
+                    self.SetEdgeObjective(src_id, dst_id, ret)
+        if edgeIDs == None:
+            for line in infile:
+                if line.startswith('#'): continue
+                data = [x.strip() for x in line.split(',')]
+                src_id = int(data[srcIdCol])
+                dst_id = int(data[dstIdCol])
+                src_vars = self.GetNodeVariables(src_id)
+                dst_vars = self.GetNodeVariables(dst_id)
+                ret = obj_func(src_vars, dst_vars, data)
+                if type(ret) is tuple:
+                    # Tuple = assume we have (objective, constraints)
+                    self.SetEdgeObjective(src_id, dst_id, ret[0])
+                    self.SetEdgeConstraints(src_id, dst_id, ret[1])
+                else:
+                    # Singleton object = assume it is the objective
+                    self.SetEdgeObjective(src_id, dst_id, ret)
+        else:
+            for edgeID in edgeIDs:
+                etup = self.__GetEdgeTup(edgeID[0], edgeID[1])
+                while True:
+                    line = infile.readline()
+                    if line == '':
+                        raise Exception('File %s is too short.' % filename)
+                    if not line.startswith('#'): break
+                data = [x.strip() for x in line.split(',')]
+                src_vars = self.GetNodeVariables(etup[0])
+                dst_vars = self.GetNodeVariables(etup[1])
+                ret = obj_func(src_vars, dst_vars, data)
+                if type(ret) is tuple:
+                    # Tuple = assume we have (objective, constraints)
+                    self.SetEdgeObjective(etup[0], etup[1], ret[0])
+                    self.SetEdgeConstraints(etup[0], etup[1], ret[1])
+                else:
+                    # Singleton object = assume it is the objective
+                    self.SetEdgeObjective(etup[0], etup[1], ret)
+        infile.close()
 
 
 ## ADMM Global Variables and Functions ##
