@@ -3,8 +3,8 @@ import numpy
 
 #Helper function to define edge objectives
 #Takes in two nodes, returns a problem defined with the variables from those nodes
-def laplace_reg(src, dst):
-	return sum_squares(src['x'] - dst['x']) #TODO: ALSO RETURN CONSTRAINTS IN TUPLE
+def laplace_reg(src, dst, data):
+	return (sum_squares(src['x'] - dst['x']), [])
 
 #Generate random graph, using SNAP syntax
 numpy.random.seed(1)
@@ -23,7 +23,11 @@ for i in range(num_nodes):
 #Set all edge objectives at once (Laplacian Regularization)
 gvx.AddEdgeObjectives(laplace_reg)
 
+#Solve in verbose mode (using ADMM)
+gvx.Solve(verbose=True)
+gvx.PrintSolution()
 
-gvx.Solve()
+#Solve serially (no ADMM)
+gvx.Solve(useADMM=False)
 gvx.PrintSolution()
 

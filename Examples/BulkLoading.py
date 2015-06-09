@@ -7,7 +7,7 @@ def node_obj(data):
 	return norm(x - float(data[0]))
 
 #Helper function for edge objective
-def laplace_reg(src, dst):
+def laplace_reg(src, dst, data):
 	return sum_squares(src['x'] - dst['x'])
 
 #Load in Edge List to build graph with default node/edge objectives
