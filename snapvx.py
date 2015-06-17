@@ -257,18 +257,23 @@ class TGraphVX(TUNGraph):
         pool = multiprocessing.Pool(num_processors)
         num_iterations = 0
         z_old = getValue(edge_z_vals, 0, z_length)
-        while True:
+        # Proceed until convergence criteria are achieved or the maximum
+        # number of iterations has passed
+        while num_iterations <= maxIters:
             # Check convergence criteria
             if num_iterations != 0:
                 x = getValue(node_vals, 0, x_length)
                 z = getValue(edge_z_vals, 0, z_length)
                 u = getValue(edge_u_vals, 0, z_length)
-                stop = self.__CheckConvergence(A, A_tr, x, z, z_old, u, rho,\
-                                               x_length, z_length, verbose)
+                # Determine if algorithm should stop. Retrieve primal and dual
+                # residuals and thresholds
+                stop, res_pri, e_pri, res_dual, e_dual =\
+                    self.__CheckConvergence(A, A_tr, x, z, z_old, u, rho,\
+                                            x_length, z_length, verbose)
                 if stop: break
                 z_old = z
                 # Update rho and scale u-values
-                rho_new = rho_update_func(rho)
+                rho_new = rho_update_func(rho, res_pri, e_pri, res_dual, e_dual)
                 scale = float(rho) / rho_new
                 edge_u_vals[:] = [i * scale for i in edge_u_vals]
                 rho = rho_new
@@ -314,7 +319,9 @@ class TGraphVX(TUNGraph):
     # s = rho * (A^T)(z - z_old)
     # e_pri = sqrt(p) * e_abs + e_rel * max(||Ax||, ||z||)
     # e_dual = sqrt(n) * e_abs + e_rel * ||rho * (A^T)u||
-    # True if (||r|| <= e_pri) and (||s|| <= e_dual)
+    # Should stop if (||r|| <= e_pri) and (||s|| <= e_dual)
+    # Returns (boolean shouldStop, primal residual value, primal threshold,
+    #          dual residual value, dual threshold)
     def __CheckConvergence(self, A, A_tr, x, z, z_old, u, rho, p, n, verbose):
         norm = numpy.linalg.norm
         e_abs = 0.01
@@ -322,15 +329,20 @@ class TGraphVX(TUNGraph):
         Ax = A.dot(x)
         r = Ax - z
         s = rho * A_tr.dot(z - z_old)
-        e_pri = math.sqrt(p) * e_abs + e_rel * max(norm(Ax), norm(z))
-        e_dual = math.sqrt(n) * e_abs + e_rel * norm(rho * A_tr.dot(u))
+        # Primal and dual thresholds. Add .0001 to prevent the case of 0.
+        e_pri = math.sqrt(p) * e_abs + e_rel * max(norm(Ax), norm(z)) + .0001
+        e_dual = math.sqrt(n) * e_abs + e_rel * norm(rho * A_tr.dot(u)) + .0001
+        # Primal and dual residuals
+        res_pri = norm(r)
+        res_dual = norm(s)
         if verbose:
             # Debugging information to print convergence criteria values
-            print '  r:', norm(r)
+            print '  r:', res_pri
             print '  e_pri:', e_pri
-            print '  s:', norm(s)
+            print '  s:', res_dual
             print '  e_dual:', e_dual
-        return (norm(r) <= e_pri) and (norm(s) < e_dual)
+        stop = (res_pri <= e_pri) and (res_dual <= e_dual)
+        return (stop, res_pri, e_pri, res_dual, e_dual)
 
     # API to get node Variable value after solving with ADMM.
     def GetNodeValue(self, NId, name):
@@ -626,10 +638,15 @@ class TGraphVX(TUNGraph):
 
 ## ADMM Global Variables and Functions ##
 
-# By default, rho is 1.0. Default rho update is identity function.
+# By default, rho is 1.0. Default rho update is identity function and does not
+# depend on primal or dual residuals or thresholds.
 __default_rho = 1.0
-__default_rho_update_func = lambda rho: rho
+__default_rho_update_func = lambda rho, res_p, thr_p, res_d, thr_d: rho
 rho = __default_rho
+# Rho update function takes 5 parameters
+# - Old value of rho
+# - Primal residual and threshold
+# - Dual residual and threshold
 rho_update_func = __default_rho_update_func
 
 def SetRho(rho_new=None):
