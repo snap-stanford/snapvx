@@ -10,6 +10,22 @@ import time
 
 testADMM = True
 
+def main():
+    # test1(testADMM=testADMM)
+    # test2(testADMM=testADMM)
+    # test3(testADMM=testADMM)
+    # test4(testADMM=testADMM)
+    # test5(testADMM=testADMM)
+    test6(testADMM=testADMM)
+    # test7(testADMM=testADMM)
+    print '**************** DONE *****************'
+
+def printTest(num):
+    s = str(num)
+    if num < 10: s = '0' + s
+    print '*************** TEST %s ***************' % s
+
+
 # Simple test on a graph with 2 nodes and 1 edge.
 # Node 1: objective = x1^2
 # Node 2: objective = |x2 + 3|
@@ -347,20 +363,6 @@ def objective_node_func_7(d):
 def objective_edge_func_7(src, dst, data):
     return square(norm(src['x'] - dst['x'] + int(data[2])))
 
-
-def printTest(num):
-    s = str(num)
-    if num < 10: s = '0' + s
-    print '*************** TEST %s ***************' % s
-
-def main():
-    # test1(testADMM=testADMM)
-    # test2(testADMM=testADMM)
-    # test3(testADMM=testADMM)
-    # test4(testADMM=testADMM)
-    # test5(testADMM=testADMM)
-    # test6(testADMM=testADMM)
-    # test7(testADMM=testADMM)
 
 if __name__ == "__main__":
     main()

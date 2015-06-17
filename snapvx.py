@@ -11,6 +11,9 @@ import sys
 import time
 
 
+# File format: One edge per line, written as "srcID dstID"
+# Commented lines that start with '#' are ignored
+# Returns a TGraphVX object with the designated edges and nodes
 def LoadEdgeList(filename):
     gvx = TGraphVX()
     nids = set()
@@ -28,17 +31,21 @@ def LoadEdgeList(filename):
     return gvx
 
 
+# TGraphVX inherits from the TUNGraph object defined by Snap.py
 class TGraphVX(TUNGraph):
 
     __default_objective = norm(0)
     __default_constraints = []
 
+    # Data Structures
+    # ---------------
     # node_objectives  = {int NId : CVXPY Expression}
     # node_constraints = {int NId : [CVXPY Constraint]}
     # edge_objectives  = {(int NId1, int NId2) : CVXPY Expression}
     # edge_constraints = {(int NId1, int NId2) : [CVXPY Constraint]}
     #
     # ADMM-Specific Structures
+    # ------------------------
     # node_variables   = {int NId :
     #       [(CVXPY Variable id, CVXPY Variable name, CVXPY Variable, offset)]}
     # node_values = {int NId : numpy array}
@@ -50,6 +57,7 @@ class TGraphVX(TUNGraph):
     # If Graph is a Snap.py graph, initializes a SnapVX graph with the same
     # nodes and edges.
     def __init__(self, Graph=None):
+        # Initialize data structures
         self.node_objectives = {}
         self.node_variables = {}
         self.node_constraints = {}
@@ -59,12 +67,12 @@ class TGraphVX(TUNGraph):
         self.status = None
         self.value = None
 
+        # Initialize superclass
         nodes = 0
         edges = 0
         if Graph != None:
             nodes = Graph.GetNodes()
             edges = Graph.GetEdges()
-
         TUNGraph.__init__(self, nodes, edges)
 
         # Support for constructor with Snap.py graph argument
@@ -75,7 +83,7 @@ class TGraphVX(TUNGraph):
                 self.AddEdge(ei.GetSrcNId(), ei.GetDstNId())
 
     # Simple iterator to iterator over all nodes in graph. Similar in
-    # functionality to Nodes() iterator of PUNGraph in Snapy.py.
+    # functionality to Nodes() iterator of PUNGraph in Snap.py.
     def Nodes(self):
         ni = TUNGraph.BegNI(self)
         for i in xrange(TUNGraph.GetNodes(self)):
@@ -83,40 +91,45 @@ class TGraphVX(TUNGraph):
             ni.Next()
 
     # Simple iterator to iterator over all edge in graph. Similar in
-    # functionality to Edges() iterator of PUNGraph in Snapy.py.
+    # functionality to Edges() iterator of PUNGraph in Snap.py.
     def Edges(self):
         ei = TUNGraph.BegEI(self)
         for i in xrange(TUNGraph.GetEdges(self)):
             yield ei
             ei.Next()
 
-    # Iterates through all nodes and edges. Currently adds objectives together.
+    # Adds objectives together to form one collective CVXPY Problem.
     # Option of specifying Maximize() or the default Minimize().
+    # Graph status and value properties will also be set.
+    # Individual variable values can be retrieved using GetNodeValue().
     # Option to use serial version or distributed ADMM.
-    # Graph status and value properties will be set in serial version.
-    # Individual variable values can always be retrieved using GetNodeValue().
-    def Solve(self, M=Minimize, useADMM=True, rho=1.0, verbose=False):
+    # maxIters optional parameter: Maximum iterations for distributed ADMM.
+    def Solve(self, M=Minimize, useADMM=True, rho=1.0, maxIters=250,
+              verbose=False):
         if useADMM:
-            self.__SolveADMM(rho, verbose)
+            self.__SolveADMM(rho, maxIters, verbose)
             return
         if verbose:
             print 'Serial ADMM'
         objective = 0
         constraints = []
+        # Add all node objectives and constraints
         for ni in self.Nodes():
             nid = ni.GetId()
             objective += self.node_objectives[nid]
             constraints += self.node_constraints[nid]
+        # Add all edge objectives and constraints
         for ei in self.Edges():
             etup = self.__GetEdgeTup(ei.GetSrcNId(), ei.GetDstNId())
             objective += self.edge_objectives[etup]
             constraints += self.edge_constraints[etup]
+        # Solve CVXPY Problem
         objective = M(objective)
         problem = Problem(objective, constraints)
         problem.solve()
         self.status = problem.status
         self.value = problem.value
-        # Insert into hash to match ADMMDistributed() output
+        # Insert into hash to support ADMM structures and GetNodeValue()
         for ni in self.Nodes():
             nid = ni.GetId()
             variables = self.node_variables[nid]
@@ -131,7 +144,10 @@ class TGraphVX(TUNGraph):
                     value = numpy.concatenate((value, val))
             self.node_values[nid] = value
 
-    def __SolveADMM(self, rho_param, verbose=False):
+    # Implementation of distributed ADMM
+    # Uses a global value of rho_param for rho
+    # Will run for a maximum of maxIters iterations
+    def __SolveADMM(self, rho_param, maxIters, verbose=False):
         global node_vals, edge_z_vals, edge_u_vals, rho
         global getValue, rho_update_func
 
@@ -140,7 +156,10 @@ class TGraphVX(TUNGraph):
         if verbose:
             print 'Distributed ADMM (%d processors)' % num_processors
 
+        # Organize information for each node in helper node_info structure
         node_info = {}
+        # Keeps track of the current offset necessary into the shared node
+        # values Array
         length = 0
         for ni in self.Nodes():
             nid = ni.GetId()
@@ -149,29 +168,36 @@ class TGraphVX(TUNGraph):
             variables = self.node_variables[nid]
             con = self.node_constraints[nid]
             neighbors = [ni.GetNbrNId(j) for j in xrange(deg)]
+            # Node's constraints include those imposed by edges
             for neighborId in neighbors:
                 etup = self.__GetEdgeTup(nid, neighborId)
                 econ = self.edge_constraints[etup]
                 con += econ
+            # Calculate sum of dimensions of all Variables for this node
             size = 0
             for (varID, varName, var, offset) in variables:
                 size += var.size[0]
+            # Nearly complete information package for this node
             node_info[nid] = (nid, obj, variables, con, length, size, deg,\
                 neighbors)
             length += size
         node_vals = multiprocessing.Array('d', [0.0] * length)
         x_length = length
 
+        # Organize information for each node in final edge_list structure and
+        # also helper edge_info structure
         edge_list = []
         edge_info = {}
+        # Keeps track of the current offset necessary into the shared edge
+        # values Arrays
         length = 0
-        num_edges = 0
         for ei in self.Edges():
             etup = self.__GetEdgeTup(ei.GetSrcNId(), ei.GetDstNId())
             obj = self.edge_objectives[etup]
             con = self.edge_constraints[etup]
             con += self.node_constraints[etup[0]] +\
                 self.node_constraints[etup[1]]
+            # Get information for each endpoint node
             info_i = node_info[etup[0]]
             info_j = node_info[etup[1]]
             ind_zij = length
@@ -180,11 +206,11 @@ class TGraphVX(TUNGraph):
             ind_zji = length
             ind_uji = length
             length += info_j[X_LEN]
+            # Information package for this edge
             tup = (etup, obj, con,\
                 info_i[X_VARS], info_i[X_LEN], info_i[X_IND], ind_zij, ind_uij,\
                 info_j[X_VARS], info_j[X_LEN], info_j[X_IND], ind_zji, ind_uji)
             edge_list.append(tup)
-            num_edges += 1
             edge_info[etup] = tup
         edge_z_vals = multiprocessing.Array('d', [0.0] * length)
         edge_u_vals = multiprocessing.Array('d', [0.0] * length)
@@ -211,11 +237,14 @@ class TGraphVX(TUNGraph):
                 A[row, col] = 1
         A_tr = A.transpose()
 
+        # Create final node_list structure by adding on information for
+        # node neighbors
         node_list = []
-        num_nodes = 0
         for nid, info in node_info.iteritems():
             entry = [nid, info[X_OBJ], info[X_VARS], info[X_CON], info[X_IND],\
                 info[X_LEN], info[X_DEG]]
+            # Append information about z- and u-value indices for each
+            # node neighbor
             for i in xrange(info[X_DEG]):
                 neighborId = info[X_NEIGHBORS][i]
                 indices = (Z_ZIJIND, Z_UIJIND) if nid < neighborId else\
@@ -224,7 +253,6 @@ class TGraphVX(TUNGraph):
                 entry.append(einfo[indices[0]])
                 entry.append(einfo[indices[1]])
             node_list.append(entry)
-            num_nodes += 1
 
         pool = multiprocessing.Pool(num_processors)
         num_iterations = 0
@@ -255,6 +283,7 @@ class TGraphVX(TUNGraph):
         pool.close()
         pool.join()
 
+        # Insert into hash to support GetNodeValue()
         for entry in node_list:
             nid = entry[X_NID]
             index = entry[X_IND]
@@ -303,7 +332,7 @@ class TGraphVX(TUNGraph):
             print '  e_dual:', e_dual
         return (norm(r) <= e_pri) and (norm(s) < e_dual)
 
-    # API to get node variable value after solving with ADMM.
+    # API to get node Variable value after solving with ADMM.
     def GetNodeValue(self, NId, name):
         self.__VerifyNId(NId)
         for (varID, varName, var, offset) in self.node_variables[NId]:
@@ -429,8 +458,10 @@ class TGraphVX(TUNGraph):
         return self.edge_constraints[ETup]
 
 
-    # Get dictionary of all variables corresponding to a node.
+    # Returns a dictionary of all variables corresponding to a node.
     # { string name : CVXPY Variable }
+    # This can be used in place of bulk loading functions to recover necessary
+    # Variables for an edge.
     def GetNodeVariables(self, NId):
         self.__VerifyNId(NId)
         d = {}
@@ -612,25 +643,53 @@ def SetRhoUpdateFunc(f=None):
     global rho_update_func
     rho_update_func = f if f else __default_rho_update_func
 
-# Node ID, CVXPY Objective, CVXPY Variables, CVXPY Constraints,
-#   Starting index into node_vals, Length of all variables, Node degree
+# Tuple of indices to identify the information package for each node. Actual
+# length of specific package (list) may vary depending on node degree.
+# X_NID: Node ID
+# X_OBJ: CVXPY Objective
+# X_VARS: CVXPY Variables (entry from node_variables structure)
+# X_CON: CVXPY Constraints
+# X_IND: Starting index into shared node_vals Array
+# X_LEN: Total length (sum of dimensions) of all variables
+# X_DEG: Number of neighbors
+# X_NEIGHBORS: Placeholder for information about each neighbors
+#   Information for each neighbor is two entries, appended in order.
+#   Starting index of the corresponding z-value in edge_z_vals. Then for u.
 (X_NID, X_OBJ, X_VARS, X_CON, X_IND, X_LEN, X_DEG, X_NEIGHBORS) = range(8)
 
+# Tuple of indices to identify the information package for each edge.
+# Z_EID: Edge ID / tuple
+# Z_OBJ: CVXPY Objective
+# Z_CON: CVXPY Constraints
+# Z_[IJ]VARS: CVXPY Variables for Node [ij] (entry from node_variables)
+# Z_[IJ]LEN: Total length (sum of dimensions) of all variables for Node [ij]
+# Z_X[IJ]IND: Starting index into shared node_vals Array for Node [ij]
+# Z_Z[IJ|JI]IND: Starting index into shared edge_z_vals Array for edge [ij|ji]
+# Z_U[IJ|JI]IND: Starting index into shared edge_u_vals Array for edge [ij|ji]
 (Z_EID, Z_OBJ, Z_CON, Z_IVARS, Z_ILEN, Z_XIIND, Z_ZIJIND, Z_UIJIND,\
     Z_JVARS, Z_JLEN, Z_XJIND, Z_ZJIIND, Z_UJIIND) = range(13)
 
+# Contain all x, z, and u values for each node and/or edge in ADMM. Use the
+# given starting index and length with getValue() to get individual node values
 node_vals = None
 edge_z_vals = None
 edge_u_vals = None
 
-def getValue(arr, index, size):
-    return numpy.array(arr[index:(index + size)])
+# Extract a numpy array value from a shared Array.
+# Give shared array, starting index, and total length.
+def getValue(arr, index, length):
+    return numpy.array(arr[index:(index + length)])
 
-def writeValue(sharedarr, index, nparr, size):
-    if size == 1:
+# Write value of numpy array nparr (with given length) to a shared Array at
+# the given starting index.
+def writeValue(sharedarr, index, nparr, length):
+    if length == 1:
         nparr = [nparr]
-    sharedarr[index:(index + size)] = nparr
+    sharedarr[index:(index + length)] = nparr
 
+# Write the values for all of the Variables involved in a given Objective to
+# the given shared Array.
+# variables should be an entry from the node_values structure.
 def writeObjective(sharedarr, index, objective, variables):
     for v in objective.variables():
         vID = v.id
@@ -642,16 +701,18 @@ def writeObjective(sharedarr, index, objective, variables):
                 writeValue(sharedarr, index + offset, value, var.size[0])
                 break
 
+# x-update for ADMM for one node
 def ADMM_x(entry):
     global rho
     variables = entry[X_VARS]
     norms = 0
+    # Iterate through all neighbors of the node
     for i in xrange(entry[X_DEG]):
         z_index = X_NEIGHBORS + (2 * i)
         u_index = z_index + 1
         zi = entry[z_index]
         ui = entry[u_index]
-        # Add norm for each variable corresponding to the node
+        # Add norm for Variables corresponding to the node
         for (varID, varName, var, offset) in variables:
             z = getValue(edge_z_vals, zi + offset, var.size[0])
             u = getValue(edge_u_vals, ui + offset, var.size[0])
@@ -663,9 +724,11 @@ def ADMM_x(entry):
     problem = Problem(objective, constraints)
     problem.solve()
 
+    # Write back result of x-update
     writeObjective(node_vals, entry[X_IND], objective, variables)
     return None
 
+# z-update for ADMM for one edge
 def ADMM_z(entry):
     global rho
     objective = entry[Z_OBJ]
@@ -688,10 +751,12 @@ def ADMM_z(entry):
     problem = Problem(objective, constraints)
     problem.solve()
 
+    # Write back result of z-update. Must write back for i- and j-node
     writeObjective(edge_z_vals, entry[Z_ZIJIND], objective, variables_i)
     writeObjective(edge_z_vals, entry[Z_ZJIIND], objective, variables_j)
     return None
 
+# u-update for ADMM for one edge
 def ADMM_u(entry):
     global rho
     size_i = entry[Z_ILEN]
