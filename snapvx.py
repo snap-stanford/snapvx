@@ -136,9 +136,10 @@ class TGraphVX(TUNGraph):
             variables = self.node_variables[nid]
             value = None
             for (varID, varName, var, offset) in variables:
-                val = numpy.transpose(var.value)
                 if var.size[0] == 1:
-                    val = numpy.array([val])
+                    val = numpy.array([var.value])
+                else:
+                    val = numpy.array(var.value).reshape(-1,)
                 if not value:
                     value = val
                 else:
