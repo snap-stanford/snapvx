@@ -127,6 +127,7 @@ class TGraphVX(TUNGraph):
         objective = M(objective)
         problem = Problem(objective, constraints)
         problem.solve()
+        # Set TGraphVX status and value to match CVXPY
         self.status = problem.status
         self.value = problem.value
         # Insert into hash to support ADMM structures and GetNodeValue()
@@ -294,7 +295,8 @@ class TGraphVX(TUNGraph):
             index = entry[X_IND]
             size = entry[X_LEN]
             self.node_values[nid] = getValue(node_vals, index, size)
-        self.status = 'optimal'
+        # Set TGraphVX status and value to match CVXPY
+        self.status = 'optimal' if num_iterations <= maxIters else 'inaccurate'
         self.value = self.__GetTotalProblemValue()
 
     # Iterate through all variables and update values.
@@ -358,6 +360,9 @@ class TGraphVX(TUNGraph):
     def PrintSolution(self, filename=None):
         numpy.set_printoptions(linewidth=numpy.inf)
         out = sys.stdout if (filename == None) else open(filename, 'w+')
+
+        out.write('Status: %s\n' % self.status)
+        out.write('Value: %f\n' % self.value)
         for ni in self.Nodes():
             nid = ni.GetId()
             s = 'Node %d:\n' % nid

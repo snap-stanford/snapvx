@@ -11,8 +11,8 @@ import time
 testADMM = True
 
 def main():
-    # test1(testADMM=testADMM)
-    # test2(testADMM=testADMM)
+    test1(testADMM=testADMM)
+    test2(testADMM=testADMM)
     # test3(testADMM=testADMM)
     # test4(testADMM=testADMM)
     # test5(testADMM=testADMM)
@@ -53,7 +53,6 @@ def test1(testADMM=False):
         gvx.Solve(useADMM=True)
         t1 = time.time()
         print 'ADMM Solution [%.4f seconds]' % (t1 - t0)
-        print gvx.status, gvx.value
         gvx.PrintSolution()
         gvx.PrintSolution('test1-ADMM.out')
 
@@ -61,7 +60,6 @@ def test1(testADMM=False):
     gvx.Solve(useADMM=False)
     t1 = time.time()
     print 'Serial Solution [%.4f seconds]' % (t1 - t0)
-    print gvx.status, gvx.value
     gvx.PrintSolution()
     gvx.PrintSolution('test1-serial.out')
 
