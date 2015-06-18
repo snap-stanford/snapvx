@@ -297,7 +297,7 @@ class TGraphVX(TUNGraph):
             size = entry[X_LEN]
             self.node_values[nid] = getValue(node_vals, index, size)
         # Set TGraphVX status and value to match CVXPY
-        self.status = 'optimal' if num_iterations <= maxIters else 'inaccurate'
+        self.status = 'Optimal' if num_iterations <= maxIters else 'Incomplete: max iterations reached'
         self.value = self.__GetTotalProblemValue()
 
     # Iterate through all variables and update values.
@@ -363,7 +363,7 @@ class TGraphVX(TUNGraph):
         out = sys.stdout if (filename == None) else open(filename, 'w+')
 
         out.write('Status: %s\n' % self.status)
-        out.write('Value: %f\n' % self.value)
+        out.write('Total Objective: %f\n' % self.value)
         for ni in self.Nodes():
             nid = ni.GetId()
             s = 'Node %d:\n' % nid
