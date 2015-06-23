@@ -99,7 +99,7 @@ class TGraphVX(TUNGraph):
             ei.Next()
 
     # Adds objectives together to form one collective CVXPY Problem.
-    # Option of specifying Maximize() or the default Minimize().
+    # Option of specifying Maximize() or the default Minimize() (only works when useADMM=False).
     # Graph status and value properties will also be set.
     # Individual variable values can be retrieved using GetNodeValue().
     # Option to use serial version or distributed ADMM.
