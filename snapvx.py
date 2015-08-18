@@ -298,11 +298,11 @@ class TGraphVX(TUNGraph):
             self.node_values[nid] = getValue(node_vals, index, size)
         # Set TGraphVX status and value to match CVXPY
         self.status = 'Optimal' if num_iterations <= maxIters else 'Incomplete: max iterations reached'
-        self.value = self.__GetTotalProblemValue()
+        self.value = self.GetTotalProblemValue()
 
     # Iterate through all variables and update values.
     # Sum all objective values over all nodes and edges.
-    def __GetTotalProblemValue(self):
+    def GetTotalProblemValue(self):
         global getValue
         result = 0.0
         for ni in self.Nodes():
