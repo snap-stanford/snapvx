@@ -5,7 +5,7 @@ import time
 def laplace_reg(src, dst, data):
     return (sum_squares(src['x'] - dst['x']), [])
 
-num_nodes = 100
+num_nodes = 10
 size_prob = 5000
 
 temp = GenRndDegK(num_nodes, 3)
@@ -19,7 +19,7 @@ for i in range(num_nodes):
 gvx.AddEdgeObjectives(laplace_reg)
 
 start = time.time()
-gvx.Solve(verbose=True)
+gvx.Solve(verbose=True, rho=1.0)#1.0 vs 1.1
 ellapsed = time.time() - start
 print ellapsed, "seconds; with ADMM"
 
