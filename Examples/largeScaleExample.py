@@ -3,10 +3,11 @@ import numpy
 import time
 
 def laplace_reg(src, dst, data):
-    return (sum_squares(src['x'] - dst['x']), [])
+    return (norm(src['x'] - dst['x']), [])
 
-num_nodes = 10
-size_prob = 5000
+numpy.random.seed(0)
+num_nodes = 1000#1000
+size_prob = 9000#9000
 
 temp = GenRndDegK(num_nodes, 3)
 gvx = TGraphVX(temp)
@@ -14,15 +15,16 @@ gvx = TGraphVX(temp)
 for i in range(num_nodes):
     x = Variable(size_prob,name='x')
     a = numpy.random.randn(size_prob)
-    gvx.SetNodeObjective(i, square(norm(x-a)))
+    gvx.SetNodeObjective(i, sum_entries(huber(x-a)))
+
 
 gvx.AddEdgeObjectives(laplace_reg)
 
 start = time.time()
-gvx.Solve(verbose=True, rho=1.0)#1.0 vs 1.1
+gvx.Solve(verbose=True, rho=0.1)#0.1
 ellapsed = time.time() - start
 print ellapsed, "seconds; with ADMM"
-
+gvx.PrintSolution()
 
 start = time.time()
 #gvx.Solve(useADMM=False)                                                                                             
