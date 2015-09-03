@@ -126,7 +126,10 @@ class TGraphVX(TUNGraph):
         # Solve CVXPY Problem
         objective = M(objective)
         problem = Problem(objective, constraints)
-        problem.solve()
+        try:
+            problem.solve()
+        except SolverError:
+            problem.solve(solver=SCS)
         if problem.status in [INFEASIBLE_INACCURATE, UNBOUNDED_INACCURATE]:
             problem.solve(solver=SCS)
         # Set TGraphVX status and value to match CVXPY
@@ -747,7 +750,10 @@ def ADMM_x(entry):
     objective = Minimize(objective)
     constraints = entry[X_CON]
     problem = Problem(objective, constraints)
-    problem.solve()
+    try:
+        problem.solve()
+    except SolverError:
+        problem.solve(solver=SCS)
     if problem.status in [INFEASIBLE_INACCURATE, UNBOUNDED_INACCURATE]:
         print "ECOS error: using SCS for x update"
         problem.solve(solver=SCS)
@@ -777,7 +783,10 @@ def ADMM_z(entry):
 
     objective = Minimize(objective + (rho / 2) * norms)
     problem = Problem(objective, constraints)
-    problem.solve()
+    try:
+        problem.solve()
+    except SolverError:
+        problem.solve(solver=SCS)
     if problem.status in [INFEASIBLE_INACCURATE, UNBOUNDED_INACCURATE]:
         print "ECOS error: using SCS for z update"
         problem.solve(solver=SCS)
