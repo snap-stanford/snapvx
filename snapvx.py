@@ -155,7 +155,12 @@ class TGraphVX(TUNGraph):
         # Solve CVXPY Problem
         objective = m_func(objective)
         problem = Problem(objective, constraints)
-        problem.solve()
+        try:
+            problem.solve()
+        except SolverError:
+            problem.solve(solver=SCS)
+        if problem.status in [INFEASIBLE_INACCURATE, UNBOUNDED_INACCURATE]:
+            problem.solve(solver=SCS)
         # Set TGraphVX status and value to match CVXPY
         self.status = problem.status
         self.value = problem.value
@@ -800,7 +805,13 @@ def ADMM_x(entry):
     objective = m_func(objective)
     constraints = entry[X_CON]
     problem = Problem(objective, constraints)
-    problem.solve()
+    try:
+        problem.solve()
+    except SolverError:
+        problem.solve(solver=SCS)
+    if problem.status in [INFEASIBLE_INACCURATE, UNBOUNDED_INACCURATE]:
+        print "ECOS error: using SCS for x update"
+        problem.solve(solver=SCS)
 
     # Write back result of x-update
     writeObjective(node_vals, entry[X_IND], objective, variables)
@@ -827,7 +838,13 @@ def ADMM_z(entry):
 
     objective = m_func(objective + (rho / 2) * norms)
     problem = Problem(objective, constraints)
-    problem.solve()
+    try:
+        problem.solve()
+    except SolverError:
+        problem.solve(solver=SCS)
+    if problem.status in [INFEASIBLE_INACCURATE, UNBOUNDED_INACCURATE]:
+        print "ECOS error: using SCS for z update"
+        problem.solve(solver=SCS)
 
     # Write back result of z-update. Must write back for i- and j-node
     writeObjective(edge_z_vals, entry[Z_ZIJIND], objective, variables_i)
