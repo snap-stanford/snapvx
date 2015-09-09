@@ -50,14 +50,14 @@ def test1(testADMM=False):
     # ADMM test to ensure that calculated values are the same.
     if testADMM:
         t0 = time.time()
-        gvx.Solve(useADMM=True)
+        gvx.Solve(UseADMM=True)
         t1 = time.time()
         print 'ADMM Solution [%.4f seconds]' % (t1 - t0)
         gvx.PrintSolution()
         gvx.PrintSolution('test1-ADMM.out')
 
     t0 = time.time()
-    gvx.Solve(useADMM=False)
+    gvx.Solve(UseADMM=False)
     t1 = time.time()
     print 'Serial Solution [%.4f seconds]' % (t1 - t0)
     gvx.PrintSolution()
@@ -103,7 +103,7 @@ def test2(testADMM=False):
     # ADMM test to ensure that calculated values are the same.
     if testADMM:
         t0 = time.time()
-        gvx.Solve(useADMM=True)
+        gvx.Solve(UseADMM=True)
         t1 = time.time()
         print 'ADMM Solution [%.4f seconds]' % (t1 - t0)
         print 'G(%d,%d)' % (gvx.GetNodes(), gvx.GetEdges()), gvx.status, gvx.value
@@ -112,7 +112,7 @@ def test2(testADMM=False):
         gvx.PrintSolution('test2-ADMM.out')
 
     t0 = time.time()
-    gvx.Solve(useADMM=False)
+    gvx.Solve(UseADMM=False)
     t1 = time.time()
     print 'Serial Solution [%.4f seconds]' % (t1 - t0)
     print 'G(%d,%d)' % (gvx.GetNodes(), gvx.GetEdges()), gvx.status, gvx.value
@@ -162,7 +162,7 @@ def test3(testADMM=False):
     # ADMM test to ensure that calculated values are the same.
     if testADMM:
         t0 = time.time()
-        gvx.Solve(useADMM=True)
+        gvx.Solve(UseADMM=True)
         t1 = time.time()
         print 'ADMM Solution [%.4f seconds]' % (t1 - t0)
         print 'G(%d,%d)' % (gvx.GetNodes(), gvx.GetEdges()), gvx.status, gvx.value
@@ -171,7 +171,7 @@ def test3(testADMM=False):
         gvx.PrintSolution('test3-ADMM.out')
 
     t0 = time.time()
-    gvx.Solve(useADMM=False)
+    gvx.Solve(UseADMM=False)
     t1 = time.time()
     print 'Serial Solution [%.4f seconds]' % (t1 - t0)
     print 'G(%d,%d)' % (gvx.GetNodes(), gvx.GetEdges()), gvx.status, gvx.value
@@ -197,14 +197,14 @@ def test4(testADMM=False):
     # ADMM test to ensure that calculated values are the same.
     if testADMM:
         t0 = time.time()
-        gvx.Solve(useADMM=True)
+        gvx.Solve(UseADMM=True)
         t1 = time.time()
         print 'ADMM Solution [%.4f seconds]' % (t1 - t0)
         gvx.PrintSolution()
         gvx.PrintSolution('test4-ADMM.out')
 
     t0 = time.time()
-    gvx.Solve(useADMM=False)
+    gvx.Solve(UseADMM=False)
     t1 = time.time()
     print 'Serial Solution [%.4f seconds]' % (t1 - t0)
     gvx.PrintSolution()
@@ -234,20 +234,20 @@ def objective_edge_func_4(src, dst, data):
 def test5(testADMM=False):
     printTest(5)
     gvx = LoadEdgeList('test5.edges')
-    gvx.AddNodeObjectives('test5.csv', objective_node_func_5, nodeIDs=[1,2])
+    gvx.AddNodeObjectives('test5.csv', objective_node_func_5, NodeIDs=[1,2])
     gvx.AddEdgeObjectives(objective_edge_func_5)
 
     # ADMM test to ensure that calculated values are the same.
     if testADMM:
         t0 = time.time()
-        gvx.Solve(useADMM=True)
+        gvx.Solve(UseADMM=True)
         t1 = time.time()
         print 'ADMM Solution [%.4f seconds]' % (t1 - t0)
         gvx.PrintSolution()
         gvx.PrintSolution('test5-ADMM.out')
 
     t0 = time.time()
-    gvx.Solve(useADMM=False)
+    gvx.Solve(UseADMM=False)
     t1 = time.time()
     print 'Serial Solution [%.4f seconds]' % (t1 - t0)
     gvx.PrintSolution()
@@ -292,7 +292,7 @@ def test6(testADMM=False):
         nid2 = random.randint(2, num_nodes)
         if nid1 == nid2 or (gvx.IsEdge(nid1, nid2)):
             continue
-        gvx.AddEdge(nid1, nid2, Objective_Func=objective_edge_func_6)
+        gvx.AddEdge(nid1, nid2, ObjectiveFunc=objective_edge_func_6)
 
     # Solve and print results for sanity check.
     testNIds = [5, 8]
@@ -300,7 +300,7 @@ def test6(testADMM=False):
     # ADMM test to ensure that calculated values are the same.
     if testADMM:
         t0 = time.time()
-        gvx.Solve(useADMM=True)
+        gvx.Solve(UseADMM=True)
         t1 = time.time()
         print 'ADMM Solution [%.4f seconds]' % (t1 - t0)
         print 'G(%d,%d)' % (gvx.GetNodes(), gvx.GetEdges()), gvx.status, gvx.value
@@ -309,7 +309,7 @@ def test6(testADMM=False):
         gvx.PrintSolution('test6-ADMM.out')
 
     t0 = time.time()
-    gvx.Solve(useADMM=False)
+    gvx.Solve(UseADMM=False)
     t1 = time.time()
     print 'Serial Solution [%.4f seconds]' % (t1 - t0)
     print 'G(%d,%d)' % (gvx.GetNodes(), gvx.GetEdges()), gvx.status, gvx.value
@@ -328,19 +328,19 @@ def test7(testADMM=False):
     printTest(7)
     gvx = LoadEdgeList('test7.edges')
     gvx.AddNodeObjectives('test7-nodes.csv', objective_node_func_7)
-    gvx.AddEdgeObjectives(objective_edge_func_7, filename='test7-edges.csv')
+    gvx.AddEdgeObjectives(objective_edge_func_7, Filename='test7-edges.csv')
 
     # ADMM test to ensure that calculated values are the same.
     if testADMM:
         t0 = time.time()
-        gvx.Solve(useADMM=True)
+        gvx.Solve(UseADMM=True)
         t1 = time.time()
         print 'ADMM Solution [%.4f seconds]' % (t1 - t0)
         gvx.PrintSolution()
         gvx.PrintSolution('test7-ADMM.out')
 
     t0 = time.time()
-    gvx.Solve(useADMM=False)
+    gvx.Solve(UseADMM=False)
     t1 = time.time()
     print 'Serial Solution [%.4f seconds]' % (t1 - t0)
     gvx.PrintSolution()

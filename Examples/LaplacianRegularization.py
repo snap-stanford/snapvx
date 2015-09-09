@@ -24,10 +24,10 @@ for i in range(num_nodes):
 gvx.AddEdgeObjectives(laplace_reg)
 
 #Solve in verbose mode (using ADMM)
-gvx.Solve(verbose=True)
+gvx.Solve(Verbose=True)
 gvx.PrintSolution()
 
 #Solve serially (no ADMM)
-gvx.Solve(useADMM=False)
+gvx.Solve(UseADMM=False)
 gvx.PrintSolution()
 

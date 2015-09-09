@@ -34,13 +34,13 @@ class BasicTest(BaseTest):
         # Define an objective, constraints using CVXPY syntax
         gvx.AddEdge(1, 2, Objective=square(norm(x1 - x2)), Constraints=[])
 
-        gvx.Solve(useADMM=False) # Solve the problem
+        gvx.Solve(UseADMM=False) # Solve the problem
         # print gvx.PrintSolution() # Print entire solution on a node-by-node basis
         # print "x1 = ", x1.value, "; x2 = ", x2.value # Print the solutions of individual variables
         self.assertAlmostEqual(x1.value, -0.5, places=3)
         self.assertAlmostEqual(x2.value, -1, places=3)
 
-        gvx.Solve(useADMM=True) # Solve the problem with ADMM
+        gvx.Solve(UseADMM=True) # Solve the problem with ADMM
         # gvx.PrintSolution() # Print entire solution on a node-by-node basis
         # print "x1 = ", x1.value, "; x2 = ", x2.value # Print the solutions of individual variables
         self.assertAlmostEqual(x1.value, -0.5, places=1)
@@ -69,12 +69,12 @@ class BasicTest(BaseTest):
                               objective_node_func)
         gvx.AddEdgeObjectives(objective_edge_func)
 
-        gvx.Solve(useADMM=False) # Solve the problem
+        gvx.Solve(UseADMM=False) # Solve the problem
         # print gvx.PrintSolution() # Print entire solution on a node-by-node basis
         self.assertAlmostEqual(gvx.GetNodeValue(1, 'x'), -0.5, places=3)
         self.assertAlmostEqual(gvx.GetNodeValue(2, 'x'), -1, places=3)
 
-        gvx.Solve(useADMM=True) # Solve the problem with ADMM
+        gvx.Solve(UseADMM=True) # Solve the problem with ADMM
         # print gvx.PrintSolution() # Print entire solution on a node-by-node basis
         self.assertAlmostEqual(gvx.GetNodeValue(1, 'x'), -0.5, places=1)
         self.assertAlmostEqual(gvx.GetNodeValue(2, 'x'), -1, places=1)
@@ -99,14 +99,14 @@ class BasicTest(BaseTest):
         gvx = LoadEdgeList(os.path.join(BasicTest.DATA_DIR, 'multi_vars.edges'))
         gvx.AddNodeObjectives(os.path.join(BasicTest.DATA_DIR, 'multi_vars.csv'),
                               objective_node_func,
-                              nodeIDs=[1,2])
+                              NodeIDs=[1,2])
         gvx.AddEdgeObjectives(objective_edge_func)
 
         # The optimal solution has two different convergence points.
         # In particular, the 'y' variables at each node are different depending
         # on the Solve() method.
 
-        gvx.Solve(useADMM=False) # Solve the problem
+        gvx.Solve(UseADMM=False) # Solve the problem
         # print gvx.PrintSolution() # Print entire solution on a node-by-node basis
         self.assertAlmostEqual(gvx.GetTotalProblemValue(), 3.3125, places=2)
         self.assertAlmostEqual(gvx.GetNodeValue(1, 'x'), -0.25, places=3)
@@ -114,7 +114,7 @@ class BasicTest(BaseTest):
         self.assertAlmostEqual(gvx.GetNodeValue(2, 'x'), -2.75, places=3)
         # self.assertAlmostEqual(gvx.GetNodeValue(2, 'y'), -4.4375, places=3)
 
-        gvx.Solve(useADMM=True) # Solve the problem with ADMM
+        gvx.Solve(UseADMM=True) # Solve the problem with ADMM
         # print gvx.PrintSolution() # Print entire solution on a node-by-node basis
         self.assertAlmostEqual(gvx.GetTotalProblemValue(), 3.3125, places=2)
         self.assertAlmostEqual(gvx.GetNodeValue(1, 'x'), -0.25, places=1)
@@ -122,6 +122,37 @@ class BasicTest(BaseTest):
         self.assertAlmostEqual(gvx.GetNodeValue(2, 'x'), -2.75, places=1)
         # self.assertAlmostEqual(gvx.GetNodeValue(2, 'y'), -3.23, places=1)
 
+    def test_shared_vars_unallowed(self):
+        """ Test that two nodes cannot share a variable.
+        """
+        gvx = TGraphVX()
+        x = Variable(name='x')
+        # Check that resetting an Objective is still okay.
+        gvx.AddNode(1, square(x))
+        gvx.SetNodeObjective(1, square(x - 2))
+        try:
+            # Attempt to add another node that uses the same Variable.
+            gvx.AddNode(2, square(x - 1))
+        except:
+            # If an exception is thrown, then the test passes.
+            pass
+        else:
+            # If an exception is not thrown, then the test fails.
+            self.assertFalse(True, 'Two nodes currently share a variable')
+
+    def test_no_edges(self):
+        """ Test a graph with no edges.
+        """
+        gvx = TGraphVX()
+        x1 = Variable(name='x')
+        gvx.AddNode(1, Objective=square(x1), Constraints=[x1 >= 10])
+        x2 = Variable(name='x')
+        gvx.AddNode(2, Objective=square(x2), Constraints=[x2 >= 5])
+
+        gvx.Solve(UseADMM=True)
+        self.assertAlmostEqual(gvx.GetTotalProblemValue(), 125, places=2)
+        self.assertAlmostEqual(gvx.GetNodeValue(1, 'x'), 10, places=2)
+        self.assertAlmostEqual(gvx.GetNodeValue(2, 'x'), 5, places=2)
 
 if __name__ == '__main__':
     # unittest.main()

@@ -1,4 +1,25 @@
-## snapvx
+# Copyright (c) 2015, Stanford University. All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#
+# 1. Redistributions of source code must retain the above copyright notice, this
+# list of conditions and the following disclaimer.
+#
+# 2. Redistributions in binary form must reproduce the above copyright notice,
+# this list of conditions and the following disclaimer in the documentation
+# and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+# AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+# DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+# SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+# OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 from snap import *
 from cvxpy import *
@@ -14,10 +35,10 @@ import time
 # File format: One edge per line, written as "srcID dstID"
 # Commented lines that start with '#' are ignored
 # Returns a TGraphVX object with the designated edges and nodes
-def LoadEdgeList(filename):
+def LoadEdgeList(Filename):
     gvx = TGraphVX()
     nids = set()
-    infile = open(filename, 'r')
+    infile = open(Filename, 'r')
     for line in infile:
         if line.startswith('#'): continue
         [src, dst] = line.split()
@@ -43,6 +64,7 @@ class TGraphVX(TUNGraph):
     # node_constraints = {int NId : [CVXPY Constraint]}
     # edge_objectives  = {(int NId1, int NId2) : CVXPY Expression}
     # edge_constraints = {(int NId1, int NId2) : [CVXPY Constraint]}
+    # all_variables = set(CVXPY Variable)
     #
     # ADMM-Specific Structures
     # ------------------------
@@ -64,6 +86,7 @@ class TGraphVX(TUNGraph):
         self.edge_objectives = {}
         self.edge_constraints = {}
         self.node_values = {}
+        self.all_variables = set()
         self.status = None
         self.value = None
 
@@ -99,17 +122,23 @@ class TGraphVX(TUNGraph):
             ei.Next()
 
     # Adds objectives together to form one collective CVXPY Problem.
-    # Option of specifying Maximize() or the default Minimize() (only works when useADMM=False).
+    # Option of specifying Maximize() or the default Minimize().
     # Graph status and value properties will also be set.
     # Individual variable values can be retrieved using GetNodeValue().
     # Option to use serial version or distributed ADMM.
     # maxIters optional parameter: Maximum iterations for distributed ADMM.
-    def Solve(self, M=Minimize, useADMM=True, rho=1.0, maxIters=250,
-              verbose=False):
-        if useADMM:
-            self.__SolveADMM(rho, maxIters, verbose)
+    def Solve(self, M=Minimize, UseADMM=True, NumProcessors=0, Rho=1.0,
+              MaxIters=250, EpsAbs=0.01, EpsRel=0.01, Verbose=False):
+        global m_func
+        m_func = M
+
+        # Use ADMM if the appropriate parameter is specified and if there
+        # are edges in the graph.
+        if UseADMM and self.GetEdges() != 0:
+            self.__SolveADMM(NumProcessors, Rho, MaxIters, EpsAbs, EpsRel,
+                             Verbose)
             return
-        if verbose:
+        if Verbose:
             print 'Serial ADMM'
         objective = 0
         constraints = []
@@ -124,7 +153,7 @@ class TGraphVX(TUNGraph):
             objective += self.edge_objectives[etup]
             constraints += self.edge_constraints[etup]
         # Solve CVXPY Problem
-        objective = M(objective)
+        objective = m_func(objective)
         problem = Problem(objective, constraints)
         problem.solve()
         # Set TGraphVX status and value to match CVXPY
@@ -149,11 +178,15 @@ class TGraphVX(TUNGraph):
     # Implementation of distributed ADMM
     # Uses a global value of rho_param for rho
     # Will run for a maximum of maxIters iterations
-    def __SolveADMM(self, rho_param, maxIters, verbose=False):
+    def __SolveADMM(self, numProcessors, rho_param, maxIters, eps_abs, eps_rel,
+                    verbose):
         global node_vals, edge_z_vals, edge_u_vals, rho
         global getValue, rho_update_func
 
-        num_processors = multiprocessing.cpu_count()
+        if numProcessors <= 0:
+            num_processors = multiprocessing.cpu_count()
+        else:
+            num_processors = numProcessors
         rho = rho_param
         if verbose:
             print 'Distributed ADMM (%d processors)' % num_processors
@@ -271,7 +304,8 @@ class TGraphVX(TUNGraph):
                 # residuals and thresholds
                 stop, res_pri, e_pri, res_dual, e_dual =\
                     self.__CheckConvergence(A, A_tr, x, z, z_old, u, rho,\
-                                            x_length, z_length, verbose)
+                                            x_length, z_length,
+                                            eps_abs, eps_rel, verbose)
                 if stop: break
                 z_old = z
                 # Update rho and scale u-values
@@ -297,7 +331,10 @@ class TGraphVX(TUNGraph):
             size = entry[X_LEN]
             self.node_values[nid] = getValue(node_vals, index, size)
         # Set TGraphVX status and value to match CVXPY
-        self.status = 'Optimal' if num_iterations <= maxIters else 'Incomplete: max iterations reached'
+        if num_iterations <= maxIters:
+            self.status = 'Optimal'
+        else:
+            self.status = 'Incomplete: max iterations reached'
         self.value = self.GetTotalProblemValue()
 
     # Iterate through all variables and update values.
@@ -325,10 +362,9 @@ class TGraphVX(TUNGraph):
     # Should stop if (||r|| <= e_pri) and (||s|| <= e_dual)
     # Returns (boolean shouldStop, primal residual value, primal threshold,
     #          dual residual value, dual threshold)
-    def __CheckConvergence(self, A, A_tr, x, z, z_old, u, rho, p, n, verbose):
+    def __CheckConvergence(self, A, A_tr, x, z, z_old, u, rho, p, n,
+                           e_abs, e_rel, verbose):
         norm = numpy.linalg.norm
-        e_abs = 0.01
-        e_rel = 0.01
         Ax = A.dot(x)
         r = Ax - z
         s = rho * A_tr.dot(z - z_old)
@@ -348,19 +384,19 @@ class TGraphVX(TUNGraph):
         return (stop, res_pri, e_pri, res_dual, e_dual)
 
     # API to get node Variable value after solving with ADMM.
-    def GetNodeValue(self, NId, name):
+    def GetNodeValue(self, NId, Name):
         self.__VerifyNId(NId)
         for (varID, varName, var, offset) in self.node_variables[NId]:
-            if varName == name:
+            if varName == Name:
                 offset = offset
                 value = self.node_values[NId]
                 return value[offset:(offset + var.size[0])]
         return None
 
     # Prints value of all node variables to console or file, if given
-    def PrintSolution(self, filename=None):
+    def PrintSolution(self, Filename=None):
         numpy.set_printoptions(linewidth=numpy.inf)
-        out = sys.stdout if (filename == None) else open(filename, 'w+')
+        out = sys.stdout if (Filename == None) else open(Filename, 'w+')
 
         out.write('Status: %s\n' % self.status)
         out.write('Total Objective: %f\n' % self.value)
@@ -378,6 +414,19 @@ class TGraphVX(TUNGraph):
         if not TUNGraph.IsNode(self, NId):
             raise Exception('Node %d does not exist.' % NId)
 
+    # Helper method to determine if
+    def __UpdateAllVariables(self, NId, Objective):
+        if NId in self.node_objectives:
+            # First, remove the Variables from the old Objective.
+            old_obj = self.node_objectives[NId]
+            self.all_variables = self.all_variables - set(old_obj.variables())
+        # Check that the Variables of the new Objective are not currently
+        # in other Objectives.
+        new_variables = set(Objective.variables())
+        if len(self.all_variables.intersection(new_variables)) != 0:
+            raise Exception('Objective at NId %d shares a variable.' % NId)
+        self.all_variables = self.all_variables | new_variables
+
     # Helper method to get CVXPY Variables out of a CVXPY Objective
     def __ExtractVariableList(self, Objective):
         l = [(var.name(), var) for var in Objective.variables()]
@@ -394,6 +443,7 @@ class TGraphVX(TUNGraph):
     # Adds a Node to the TUNGraph and stores the corresponding CVX information.
     def AddNode(self, NId, Objective=__default_objective,\
             Constraints=__default_constraints):
+        self.__UpdateAllVariables(NId, Objective)
         self.node_objectives[NId] = Objective
         self.node_variables[NId] = self.__ExtractVariableList(Objective)
         self.node_constraints[NId] = Constraints
@@ -401,6 +451,7 @@ class TGraphVX(TUNGraph):
 
     def SetNodeObjective(self, NId, Objective):
         self.__VerifyNId(NId)
+        self.__UpdateAllVariables(NId, Objective)
         self.node_objectives[NId] = Objective
         self.node_variables[NId] = self.__ExtractVariableList(Objective)
 
@@ -435,13 +486,13 @@ class TGraphVX(TUNGraph):
     #     the default constraints.
     # If obj_func is None, then will use Objective and Constraints, which are
     #     parameters currently set to defaults.
-    def AddEdge(self, SrcNId, DstNId, Objective_Func=None,
+    def AddEdge(self, SrcNId, DstNId, ObjectiveFunc=None,
             Objective=__default_objective, Constraints=__default_constraints):
         ETup = self.__GetEdgeTup(SrcNId, DstNId)
-        if Objective_Func != None:
+        if ObjectiveFunc != None:
             src_vars = self.GetNodeVariables(SrcNId)
             dst_vars = self.GetNodeVariables(DstNId)
-            ret = Objective_Func(src_vars, dst_vars)
+            ret = ObjectiveFunc(src_vars, dst_vars)
             if type(ret) is tuple:
                 # Tuple = assume we have (objective, constraints)
                 self.edge_objectives[ETup] = ret[0]
@@ -455,7 +506,7 @@ class TGraphVX(TUNGraph):
             self.edge_constraints[ETup] = Constraints
         return TUNGraph.AddEdge(self, SrcNId, DstNId)
 
-    def SetEdgeObjective(self, SrcNId, DstNId, Objective=__default_objective):
+    def SetEdgeObjective(self, SrcNId, DstNId, Objective):
         ETup = self.__GetEdgeTup(SrcNId, DstNId)
         self.__VerifyEdgeTup(ETup)
         self.edge_objectives[ETup] = Objective
@@ -488,19 +539,19 @@ class TGraphVX(TUNGraph):
         return d
 
     # Bulk loading for nodes
-    # obj_func is a function which accepts one argument, an array of strings
+    # ObjFunc is a function which accepts one argument, an array of strings
     #     parsed from the given CSV filename
-    # obj_func should return a tuple of (objective, constraints), although
+    # ObjFunc should return a tuple of (objective, constraints), although
     #     it will assume a singleton object will be an objective
-    # Optional parameter nodeIDs allows the user to pass in a list specifying,
+    # Optional parameter NodeIDs allows the user to pass in a list specifying,
     # in order, the node IDs that correspond to successive rows
-    # If nodeIDs is None, then the file must have a column denoting the
-    # node ID for each row. The index of this column (0-indexed) is idCol.
-    # If nodeIDs and idCol are both None, then will iterate over all Nodes, in
+    # If NodeIDs is None, then the file must have a column denoting the
+    # node ID for each row. The index of this column (0-indexed) is IdCol.
+    # If NodeIDs and IdCol are both None, then will iterate over all Nodes, in
     # order, as long as the file lasts
-    def AddNodeObjectives(self, filename, obj_func, nodeIDs=None, idCol=None):
-        infile = open(filename, 'r')
-        if nodeIDs == None and idCol == None:
+    def AddNodeObjectives(self, Filename, ObjFunc, NodeIDs=None, IdCol=None):
+        infile = open(Filename, 'r')
+        if NodeIDs == None and IdCol == None:
             stop = False
             for ni in self.Nodes():
                 nid = ni.GetId()
@@ -510,7 +561,7 @@ class TGraphVX(TUNGraph):
                     if not line.startswith('#'): break
                 if stop: break
                 data = [x.strip() for x in line.split(',')]
-                ret = obj_func(data)
+                ret = ObjFunc(data)
                 if type(ret) is tuple:
                     # Tuple = assume we have (objective, constraints)
                     self.SetNodeObjective(nid, ret[0])
@@ -518,27 +569,27 @@ class TGraphVX(TUNGraph):
                 else:
                     # Singleton object = assume it is the objective
                     self.SetNodeObjective(nid, ret)
-        if nodeIDs == None:
+        if NodeIDs == None:
             for line in infile:
                 if line.startswith('#'): continue
                 data = [x.strip() for x in line.split(',')]
-                ret = obj_func(data)
+                ret = ObjFunc(data)
                 if type(ret) is tuple:
                     # Tuple = assume we have (objective, constraints)
-                    self.SetNodeObjective(int(data[idCol]), ret[0])
-                    self.SetNodeConstraints(int(data[idCol]), ret[1])
+                    self.SetNodeObjective(int(data[IdCol]), ret[0])
+                    self.SetNodeConstraints(int(data[IdCol]), ret[1])
                 else:
                     # Singleton object = assume it is the objective
-                    self.SetNodeObjective(int(data[idCol]), ret)
+                    self.SetNodeObjective(int(data[IdCol]), ret)
         else:
-            for nid in nodeIDs:
+            for nid in NodeIDs:
                 while True:
                     line = infile.readline()
                     if line == '':
                         raise Exception('File %s is too short.' % filename)
                     if not line.startswith('#'): break
                 data = [x.strip() for x in line.split(',')]
-                ret = obj_func(data)
+                ret = ObjFunc(data)
                 if type(ret) is tuple:
                     # Tuple = assume we have (objective, constraints)
                     self.SetNodeObjective(nid, ret[0])
@@ -549,31 +600,31 @@ class TGraphVX(TUNGraph):
         infile.close()
 
     # Bulk loading for edges
-    # If filename is None:
-    # obj_func is a function which accepts three arguments, a dictionary of
+    # If Filename is None:
+    # ObjFunc is a function which accepts three arguments, a dictionary of
     #     variables for the source and destination nodes, and an unused param
     #     { string varName : CVXPY Variable } x2, None
-    # obj_func should return a tuple of (objective, constraints), although
+    # ObjFunc should return a tuple of (objective, constraints), although
     #     it will assume a singleton object will be an objective
-    # If filename exists:
-    # obj_func is the same, except the third param will be be an array of
+    # If Filename exists:
+    # ObjFunc is the same, except the third param will be be an array of
     #     strings parsed from the given CSV filename
-    # Optional parameter edgeIDs allows the user to pass in a list specifying,
-    # in order, the edgeIDs that correspond to successive rows. An edgeID is
+    # Optional parameter EdgeIDs allows the user to pass in a list specifying,
+    # in order, the EdgeIDs that correspond to successive rows. An edgeID is
     # a tuple of (srcID, dstID).
-    # If edgeIDs is None, then the file may have columns denoting the srcID and
+    # If EdgeIDs is None, then the file may have columns denoting the srcID and
     # dstID for each row. The indices of these columns are 0-indexed.
-    # If edgeIDs and id columns are None, then will iterate through all edges
+    # If EdgeIDs and id columns are None, then will iterate through all edges
     # in order, as long as the file lasts.
-    def AddEdgeObjectives(self, obj_func, filename=None, edgeIDs=None,\
-            srcIdCol=None, dstIdCol=None):
-        if filename == None:
+    def AddEdgeObjectives(self, ObjFunc, Filename=None, EdgeIDs=None,\
+            SrcIdCol=None, DstIdCol=None):
+        if Filename == None:
             for ei in self.Edges():
                 src_id = ei.GetSrcNId()
                 src_vars = self.GetNodeVariables(src_id)
                 dst_id = ei.GetDstNId()
                 dst_vars = self.GetNodeVariables(dst_id)
-                ret = obj_func(src_vars, dst_vars, None)
+                ret = ObjFunc(src_vars, dst_vars, None)
                 if type(ret) is tuple:
                     # Tuple = assume we have (objective, constraints)
                     self.SetEdgeObjective(src_id, dst_id, ret[0])
@@ -582,8 +633,8 @@ class TGraphVX(TUNGraph):
                     # Singleton object = assume it is the objective
                     self.SetEdgeObjective(src_id, dst_id, ret)
             return
-        infile = open(filename, 'r')
-        if edgeIDs == None and (srcIdCol == None or dstIdCol == None):
+        infile = open(Filename, 'r')
+        if EdgeIDs == None and (SrcIdCol == None or DstIdCol == None):
             stop = False
             for ei in self.Edges():
                 src_id = ei.GetSrcNId()
@@ -596,7 +647,7 @@ class TGraphVX(TUNGraph):
                     if not line.startswith('#'): break
                 if stop: break
                 data = [x.strip() for x in line.split(',')]
-                ret = obj_func(src_vars, dst_vars, data)
+                ret = ObjFunc(src_vars, dst_vars, data)
                 if type(ret) is tuple:
                     # Tuple = assume we have (objective, constraints)
                     self.SetEdgeObjective(src_id, dst_id, ret[0])
@@ -604,15 +655,15 @@ class TGraphVX(TUNGraph):
                 else:
                     # Singleton object = assume it is the objective
                     self.SetEdgeObjective(src_id, dst_id, ret)
-        if edgeIDs == None:
+        if EdgeIDs == None:
             for line in infile:
                 if line.startswith('#'): continue
                 data = [x.strip() for x in line.split(',')]
-                src_id = int(data[srcIdCol])
-                dst_id = int(data[dstIdCol])
+                src_id = int(data[SrcIdCol])
+                dst_id = int(data[DstIdCol])
                 src_vars = self.GetNodeVariables(src_id)
                 dst_vars = self.GetNodeVariables(dst_id)
-                ret = obj_func(src_vars, dst_vars, data)
+                ret = ObjFunc(src_vars, dst_vars, data)
                 if type(ret) is tuple:
                     # Tuple = assume we have (objective, constraints)
                     self.SetEdgeObjective(src_id, dst_id, ret[0])
@@ -621,17 +672,17 @@ class TGraphVX(TUNGraph):
                     # Singleton object = assume it is the objective
                     self.SetEdgeObjective(src_id, dst_id, ret)
         else:
-            for edgeID in edgeIDs:
+            for edgeID in EdgeIDs:
                 etup = self.__GetEdgeTup(edgeID[0], edgeID[1])
                 while True:
                     line = infile.readline()
                     if line == '':
-                        raise Exception('File %s is too short.' % filename)
+                        raise Exception('File %s is too short.' % Filename)
                     if not line.startswith('#'): break
                 data = [x.strip() for x in line.split(',')]
                 src_vars = self.GetNodeVariables(etup[0])
                 dst_vars = self.GetNodeVariables(etup[1])
-                ret = obj_func(src_vars, dst_vars, data)
+                ret = ObjFunc(src_vars, dst_vars, data)
                 if type(ret) is tuple:
                     # Tuple = assume we have (objective, constraints)
                     self.SetEdgeObjective(etup[0], etup[1], ret[0])
@@ -644,6 +695,10 @@ class TGraphVX(TUNGraph):
 
 ## ADMM Global Variables and Functions ##
 
+# By default, the objective function is Minimize().
+__default_m_func = Minimize
+m_func = __default_m_func
+
 # By default, rho is 1.0. Default rho update is identity function and does not
 # depend on primal or dual residuals or thresholds.
 __default_rho = 1.0
@@ -655,16 +710,16 @@ rho = __default_rho
 # - Dual residual and threshold
 rho_update_func = __default_rho_update_func
 
-def SetRho(rho_new=None):
+def SetRho(Rho=None):
     global rho
-    rho = rho_new if rho_new else __default_rho
+    rho = Rho if Rho else __default_rho
 
 # Rho update function should take one parameter: old_rho
 # Returns new_rho
 # This function will be called at the end of every iteration
-def SetRhoUpdateFunc(f=None):
+def SetRhoUpdateFunc(Func=None):
     global rho_update_func
-    rho_update_func = f if f else __default_rho_update_func
+    rho_update_func = Func if Func else __default_rho_update_func
 
 # Tuple of indices to identify the information package for each node. Actual
 # length of specific package (list) may vary depending on node degree.
@@ -742,7 +797,7 @@ def ADMM_x(entry):
             norms += square(norm(var - z + u))
 
     objective = entry[X_OBJ] + (rho / 2) * norms
-    objective = Minimize(objective)
+    objective = m_func(objective)
     constraints = entry[X_CON]
     problem = Problem(objective, constraints)
     problem.solve()
@@ -770,7 +825,7 @@ def ADMM_z(entry):
         u_ji = getValue(edge_u_vals, entry[Z_UJIIND] + offset, var.size[0])
         norms += square(norm(x_j - var + u_ji))
 
-    objective = Minimize(objective + (rho / 2) * norms)
+    objective = m_func(objective + (rho / 2) * norms)
     problem = Problem(objective, constraints)
     problem.solve()
 
