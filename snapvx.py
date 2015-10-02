@@ -30,7 +30,7 @@ import numpy
 from scipy.sparse import lil_matrix
 import sys
 import time
-
+import __builtin__
 
 # File format: One edge per line, written as "srcID dstID"
 # Commented lines that start with '#' are ignored
@@ -428,7 +428,7 @@ class TGraphVX(TUNGraph):
         # Check that the Variables of the new Objective are not currently
         # in other Objectives.
         new_variables = set(Objective.variables())
-        if len(self.all_variables.intersection(new_variables)) != 0:
+        if __builtin__.len(self.all_variables.intersection(new_variables)) != 0:
             raise Exception('Objective at NId %d shares a variable.' % NId)
         self.all_variables = self.all_variables | new_variables
 
