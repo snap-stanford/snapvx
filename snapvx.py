@@ -39,16 +39,17 @@ def LoadEdgeList(Filename):
     gvx = TGraphVX()
     nids = set()
     infile = open(Filename, 'r')
-    for line in infile:
-        if line.startswith('#'): continue
-        [src, dst] = line.split()
-        if int(src) not in nids:
-            gvx.AddNode(int(src))
-            nids.add(int(src))
-        if int(dst) not in nids:
-            gvx.AddNode(int(dst))
-            nids.add(int(dst))
-        gvx.AddEdge(int(src), int(dst))
+    with open(Filename) as infile:
+        for line in infile:
+            if line.startswith('#'): continue
+            [src, dst] = line.split()
+            if int(src) not in nids:
+                gvx.AddNode(int(src))
+                nids.add(int(src))
+            if int(dst) not in nids:
+                gvx.AddNode(int(dst))
+                nids.add(int(dst))
+            gvx.AddEdge(int(src), int(dst))
     return gvx
 
 
@@ -208,15 +209,17 @@ class TGraphVX(TUNGraph):
             variables = self.node_variables[nid]
             con = self.node_constraints[nid]
             neighbors = [ni.GetNbrNId(j) for j in xrange(deg)]
+            con += sum([self.edge_constraints[self.__GetEdgeTup(nid, neighborId)]\
+                         for neighborId in neighbors])
             # Node's constraints include those imposed by edges
-            for neighborId in neighbors:
+            """for neighborId in neighbors:
                 etup = self.__GetEdgeTup(nid, neighborId)
                 econ = self.edge_constraints[etup]
-                con += econ
+                con += econ"""
             # Calculate sum of dimensions of all Variables for this node
-            size = 0
-            for (varID, varName, var, offset) in variables:
-                size += var.size[0]
+            size = sum([var.size[0] for variable[2] in variables])
+            #for (varID, varName, var, offset) in variables:
+            #    size += var.size[0]
             # Nearly complete information package for this node
             node_info[nid] = (nid, obj, variables, con, length, size, deg,\
                 neighbors)
