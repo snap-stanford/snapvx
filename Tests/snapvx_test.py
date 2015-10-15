@@ -45,6 +45,18 @@ class BasicTest(BaseTest):
         # print "x1 = ", x1.value, "; x2 = ", x2.value # Print the solutions of individual variables
         self.assertAlmostEqual(x1.value, -0.5, places=3)
         self.assertAlmostEqual(x2.value, -1, places=3)
+        
+	gvx.Solve(UseADMM=False,SuperNodes=[[1],[2]]) # Solve the problem with ADMM and clustering
+        # gvx.PrintSolution() # Print entire solution on a node-by-node basis
+        # print "x1 = ", x1.value, "; x2 = ", x2.value # Print the solutions of individual variables
+        self.assertAlmostEqual(x1.value, -0.5, places=3)
+        self.assertAlmostEqual(x2.value, -1, places=3)
+        
+	gvx.Solve(UseADMM=False,SuperNodes=[[1,2]]) # Solve the problem with ADMM
+        # gvx.PrintSolution() # Print entire solution on a node-by-node basis
+        # print "x1 = ", x1.value, "; x2 = ", x2.value # Print the solutions of individual variables
+        self.assertAlmostEqual(x1.value, -0.5, places=3)
+        self.assertAlmostEqual(x2.value, -1, places=3)
 
     def test_bulk_loading(self):
         """ Test bulk loading.
