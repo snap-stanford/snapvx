@@ -39,16 +39,17 @@ def LoadEdgeList(Filename):
     gvx = TGraphVX()
     nids = set()
     infile = open(Filename, 'r')
-    for line in infile:
-        if line.startswith('#'): continue
-        [src, dst] = line.split()
-        if int(src) not in nids:
-            gvx.AddNode(int(src))
-            nids.add(int(src))
-        if int(dst) not in nids:
-            gvx.AddNode(int(dst))
-            nids.add(int(dst))
-        gvx.AddEdge(int(src), int(dst))
+    with open(Filename) as infile:
+        for line in infile:
+            if line.startswith('#'): continue
+            [src, dst] = line.split()
+            if int(src) not in nids:
+                gvx.AddNode(int(src))
+                nids.add(int(src))
+            if int(dst) not in nids:
+                gvx.AddNode(int(dst))
+                nids.add(int(dst))
+            gvx.AddEdge(int(src), int(dst))
     return gvx
 
 
@@ -128,12 +129,16 @@ class TGraphVX(TUNGraph):
     # Option to use serial version or distributed ADMM.
     # maxIters optional parameter: Maximum iterations for distributed ADMM.
     def Solve(self, M=Minimize, UseADMM=True, NumProcessors=0, Rho=1.0,
-              MaxIters=250, EpsAbs=0.01, EpsRel=0.01, Verbose=False):
+              MaxIters=250, EpsAbs=0.01, EpsRel=0.01, Verbose=False, SuperNodes=[]):
         global m_func
         m_func = M
 
         # Use ADMM if the appropriate parameter is specified and if there
         # are edges in the graph.
+        if len(SuperNodes) > 0:
+            self.__SolveClusterADMM(M,UseADMM,SuperNodes, NumProcessors, Rho, MaxIters,\
+                                     EpsAbs, EpsRel, Verbose)
+            return
         if UseADMM and self.GetEdges() != 0:
             self.__SolveADMM(NumProcessors, Rho, MaxIters, EpsAbs, EpsRel,
                              Verbose)
@@ -180,6 +185,108 @@ class TGraphVX(TUNGraph):
                     value = numpy.concatenate((value, val))
             self.node_values[nid] = value
 
+    """Function to solve cluster wise optimization problem"""
+    def __SolveClusterADMM(self,M,UseADMM,superNodes,numProcessors, rho_param, 
+                           maxIters, eps_abs, eps_rel,verbose):
+        #initialize an empty supergraph
+        supergraph = TGraphVX()
+        nidToSuperidMap = {}
+        edgeToClusterTupMap = {}
+        for snid in xrange(len(superNodes)):
+            for nid in superNodes[snid]:
+                nidToSuperidMap[nid] = snid
+        """collect the entities for the supergraph. a supernode is a subgraph. a superedge
+        is a representation of a graph cut"""
+        superEdgeObjectives = {}
+        superEdgeConstraints = {}
+        superNodeObjectives = {}
+        superNodeConstraints = {}
+        superNodeVariables = {}
+        superNodeValues = {}
+        varToSuperVarMap = {}
+        """traverse through the list of edges and add each edge's constraint and objective to 
+        either the supernode to which it belongs or the superedge which connects the ends 
+        of the supernodes to which it belongs"""
+        for ei in self.Edges():
+            etup = self.__GetEdgeTup(ei.GetSrcNId(), ei.GetDstNId())
+            supersrcnid,superdstnid = nidToSuperidMap[etup[0]],nidToSuperidMap[etup[1]]
+            if supersrcnid != superdstnid:    #the edge is a part of the cut
+                if (supersrcnid,superdstnid) not in superEdgeConstraints:
+                    superEdgeConstraints[(supersrcnid,superdstnid)] = self.edge_constraints[etup]
+                    superEdgeObjectives[(supersrcnid,superdstnid)] = self.edge_objectives[etup]
+                else:
+                    superEdgeConstraints[(supersrcnid,superdstnid)] += self.edge_constraints[etup]
+                    superEdgeObjectives[(supersrcnid,superdstnid)] += self.edge_objectives[etup]
+            else:   #the edge is a part of some supernode
+                if supersrcnid not in superNodeConstraints:
+                    superNodeConstraints[supersrcnid] = self.edge_constraints[etup]
+                    superNodeObjectives[supersrcnid] = self.edge_objectives[etup]
+                else:
+                    superNodeConstraints[supersrcnid] += self.edge_constraints[etup]
+                    superNodeObjectives[supersrcnid] += self.edge_objectives[etup]
+        for ni in self.Nodes():
+            nid = ni.GetId()
+            supernid = nidToSuperidMap[nid]
+            value = None
+            for (varID, varName, var, offset) in self.node_variables[nid]:
+                if var.size[0] == 1:
+                    val = numpy.array([var.value])
+                else:
+                    val = numpy.array(var.value).reshape(-1,)
+                if not value:
+                    value = val
+                else:
+                    value = numpy.concatenate((value, val))
+            if supernid not in superNodeConstraints:
+                superNodeObjectives[supernid] = self.node_objectives[nid]
+                superNodeConstraints[supernid] = self.node_constraints[nid]
+            else:
+                superNodeObjectives[supernid] += self.node_objectives[nid]
+                superNodeConstraints[supernid] += self.node_constraints[nid]
+            for ( varId, varName, var, offset) in self.node_variables[nid]:
+                superVarName = varName+str(varID)
+                varToSuperVarMap[(nid,varName)] = (supernid,superVarName)
+                if supernid not in superNodeVariables:
+                    superNodeVariables[supernid] = [(varID, superVarName, var, offset)]
+                    superNodeValues[supernid] = value
+                else:
+                    superNodeOffset = sum([superNodeVariables[supernid][k][2].size[0]* \
+                                           superNodeVariables[supernid][k][2].size[1]\
+                                           for k in xrange(len(superNodeVariables[supernid])) ])
+                    superNodeVariables[supernid] += [(varID, superVarName, var, offset+superNodeOffset)]
+                    superNodeValues[supernid] = numpy.concatenate((superNodeValues[supernid],value))
+                
+        #add all supernodes to the supergraph
+        for supernid in superNodeConstraints:
+            supergraph.AddNode(supernid, superNodeObjectives[supernid], \
+                               superNodeConstraints[supernid])
+            supergraph.node_variables[supernid] = superNodeVariables[supernid]
+            supergraph.node_values[supernid] = superNodeValues[supernid]
+            
+        #add all superedges to the supergraph    
+        for superei in superEdgeConstraints:
+            superSrcId,superDstId = superei
+            supergraph.AddEdge(superSrcId, superDstId, None,\
+                               superEdgeObjectives[superei],\
+                                superEdgeConstraints[superei])
+                 
+        #call solver for this supergraph
+        if UseADMM == True:
+            supergraph.__SolveADMM(numProcessors, rho_param, maxIters, eps_abs, eps_rel, verbose)
+        else:
+            supergraph.Solve(M, False, numProcessors, rho_param, maxIters, eps_abs, eps_rel, verbose)
+        
+        self.status = supergraph.status
+        self.value = supergraph.value
+        for ni in self.Nodes():
+            nid = ni.GetId()
+            snid = nidToSuperidMap[nid]
+            self.node_values[nid] = []
+            for ( varId, varName, var, offset) in self.node_variables[nid]:
+                superVarName = varToSuperVarMap[(nid,varName)]
+                self.node_values[nid] = numpy.concatenate((self.node_values[nid],\
+                                                          supergraph.GetNodeValue(snid, superVarName[1])))
+                    
     # Implementation of distributed ADMM
     # Uses a global value of rho_param for rho
     # Will run for a maximum of maxIters iterations
@@ -214,9 +321,7 @@ class TGraphVX(TUNGraph):
                 econ = self.edge_constraints[etup]
                 con += econ
             # Calculate sum of dimensions of all Variables for this node
-            size = 0
-            for (varID, varName, var, offset) in variables:
-                size += var.size[0]
+            size = sum([var.size[0] for (varID, varName, var, offset) in variables])
             # Nearly complete information package for this node
             node_info[nid] = (nid, obj, variables, con, length, size, deg,\
                 neighbors)
@@ -823,19 +928,16 @@ def ADMM_z(entry):
     objective = entry[Z_OBJ]
     constraints = entry[Z_CON]
     norms = 0
-
     variables_i = entry[Z_IVARS]
     for (varID, varName, var, offset) in variables_i:
         x_i = getValue(node_vals, entry[Z_XIIND] + offset, var.size[0])
         u_ij = getValue(edge_u_vals, entry[Z_UIJIND] + offset, var.size[0])
         norms += square(norm(x_i - var + u_ij))
-
     variables_j = entry[Z_JVARS]
     for (varID, varName, var, offset) in variables_j:
         x_j = getValue(node_vals, entry[Z_XJIND] + offset, var.size[0])
         u_ji = getValue(edge_u_vals, entry[Z_UJIIND] + offset, var.size[0])
         norms += square(norm(x_j - var + u_ji))
-
     objective = m_func(objective + (rho / 2) * norms)
     problem = Problem(objective, constraints)
     try:
