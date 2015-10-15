@@ -135,7 +135,7 @@ class TGraphVX(TUNGraph):
 
         # Use ADMM if the appropriate parameter is specified and if there
         # are edges in the graph.
-        if len(SuperNodes) > 0:
+        if __builtin__.len(SuperNodes) > 0:
             self.__SolveClusterADMM(M,UseADMM,SuperNodes, NumProcessors, Rho, MaxIters,\
                                      EpsAbs, EpsRel, Verbose)
             return
@@ -192,7 +192,7 @@ class TGraphVX(TUNGraph):
         supergraph = TGraphVX()
         nidToSuperidMap = {}
         edgeToClusterTupMap = {}
-        for snid in xrange(len(superNodes)):
+        for snid in xrange(__builtin__.len(superNodes)):
             for nid in superNodes[snid]:
                 nidToSuperidMap[nid] = snid
         """collect the entities for the supergraph. a supernode is a subgraph. a superedge
@@ -252,7 +252,7 @@ class TGraphVX(TUNGraph):
                 else:
                     superNodeOffset = sum([superNodeVariables[supernid][k][2].size[0]* \
                                            superNodeVariables[supernid][k][2].size[1]\
-                                           for k in xrange(len(superNodeVariables[supernid])) ])
+                                           for k in xrange(__builtin__.len(superNodeVariables[supernid])) ])
                     superNodeVariables[supernid] += [(varID, superVarName, var, offset+superNodeOffset)]
                     superNodeValues[supernid] = numpy.concatenate((superNodeValues[supernid],value))
                 
