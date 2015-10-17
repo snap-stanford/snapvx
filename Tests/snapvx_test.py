@@ -40,19 +40,20 @@ class BasicTest(BaseTest):
         self.assertAlmostEqual(x1.value, -0.5, places=1)
         self.assertAlmostEqual(x2.value, -1, places=1)
 
+        gvx.Solve(UseADMM=True,useClustering=True,clusterSize=2) # Solve the problem with ADMM and clustering
+        # gvx.PrintSolution() # Print entire solution on a node-by-node basis
+        # print "x1 = ", x1.value, "; x2 = ", x2.value # Print the solutions of individual variables
+        self.assertAlmostEqual(x1.value, -0.5, places=1)
+        self.assertAlmostEqual(x2.value, -1, places=1)
+        
         gvx.Solve(UseADMM=False) # Solve the problem with ADMM
         # gvx.PrintSolution() # Print entire solution on a node-by-node basis
         # print "x1 = ", x1.value, "; x2 = ", x2.value # Print the solutions of individual variables
         self.assertAlmostEqual(x1.value, -0.5, places=3)
         self.assertAlmostEqual(x2.value, -1, places=3)
         
-	gvx.Solve(UseADMM=False,SuperNodes=[[1],[2]]) # Solve the problem with ADMM and clustering
-        # gvx.PrintSolution() # Print entire solution on a node-by-node basis
-        # print "x1 = ", x1.value, "; x2 = ", x2.value # Print the solutions of individual variables
-        self.assertAlmostEqual(x1.value, -0.5, places=3)
-        self.assertAlmostEqual(x2.value, -1, places=3)
         
-	gvx.Solve(UseADMM=False,SuperNodes=[[1,2]]) # Solve the problem with ADMM
+        gvx.Solve(UseADMM=False,useClustering=True,clusterSize=2) # Solve the problem with ADMM
         # gvx.PrintSolution() # Print entire solution on a node-by-node basis
         # print "x1 = ", x1.value, "; x2 = ", x2.value # Print the solutions of individual variables
         self.assertAlmostEqual(x1.value, -0.5, places=3)
@@ -86,11 +87,26 @@ class BasicTest(BaseTest):
         self.assertAlmostEqual(gvx.GetNodeValue(1, 'x'), -0.5, places=1)
         self.assertAlmostEqual(gvx.GetNodeValue(2, 'x'), -1, places=1)
 
+        gvx.Solve(UseADMM=True,useClustering=True,clusterSize=5) # Solve the problem
+        # print gvx.PrintSolution() # Print entire solution on a node-by-node basis
+        self.assertAlmostEqual(gvx.GetNodeValue(1, 'x'), -0.5, places=1)
+        self.assertAlmostEqual(gvx.GetNodeValue(2, 'x'), -1, places=1)
+        
         gvx.Solve(UseADMM=False) # Solve the problem with ADMM
         # print gvx.PrintSolution() # Print entire solution on a node-by-node basis
         self.assertAlmostEqual(gvx.GetNodeValue(1, 'x'), -0.5, places=3)
         self.assertAlmostEqual(gvx.GetNodeValue(2, 'x'), -1, places=3)
 
+        gvx.Solve(UseADMM=False,useClustering=True,clusterSize=5) # Solve the problem with ADMM and clustering
+        # gvx.PrintSolution() # Print entire solution on a node-by-node basis
+        self.assertAlmostEqual(gvx.GetNodeValue(1, 'x'), -0.5, places=3)
+        self.assertAlmostEqual(gvx.GetNodeValue(2, 'x'), -1, places=3)
+        
+        #gvx.Solve(UseADMM=True,useClustering=True,clusterSize=5) # Solve the problem with ADMM
+        # gvx.PrintSolution() # Print entire solution on a node-by-node basis
+        #self.assertAlmostEqual(gvx.GetNodeValue(1, 'x'), -0.5, places=1)
+        #self.assertAlmostEqual(gvx.GetNodeValue(2, 'x'), -1, places=1)
+        
     def test_multi_vars(self):
         """ Test multiple variables.
         """
@@ -119,13 +135,21 @@ class BasicTest(BaseTest):
         # on the Solve() method.
 
         gvx.Solve(UseADMM=True) # Solve the problem
-        # print gvx.PrintSolution() # Print entire solution on a node-by-node basis
+        #print gvx.PrintSolution() # Print entire solution on a node-by-node basis
         self.assertAlmostEqual(gvx.GetTotalProblemValue(), 3.3125, places=2)
         self.assertAlmostEqual(gvx.GetNodeValue(1, 'x'), -0.25, places=1)
         # self.assertAlmostEqual(gvx.GetNodeValue(1, 'y'), -5.5625, places=3)
         self.assertAlmostEqual(gvx.GetNodeValue(2, 'x'), -2.75, places=1)
         # self.assertAlmostEqual(gvx.GetNodeValue(2, 'y'), -4.4375, places=3)
 
+        gvx.Solve(UseADMM=True,useClustering=True,clusterSize=5) # Solve the problem
+        #print gvx.PrintSolution() # Print entire solution on a node-by-node basis
+        self.assertAlmostEqual(gvx.GetTotalProblemValue(), 3.3125, places=2)
+        self.assertAlmostEqual(gvx.GetNodeValue(1, 'x'), -0.25, places=1)
+        # self.assertAlmostEqual(gvx.GetNodeValue(1, 'y'), -5.5625, places=3)
+        self.assertAlmostEqual(gvx.GetNodeValue(2, 'x'), -2.75, places=1)
+        # self.assertAlmostEqual(gvx.GetNodeValue(2, 'y'), -4.4375, places=3)
+        
         gvx.Solve(UseADMM=False) # Solve the problem with ADMM
         # print gvx.PrintSolution() # Print entire solution on a node-by-node basis
         self.assertAlmostEqual(gvx.GetTotalProblemValue(), 3.3125, places=2)
@@ -134,6 +158,15 @@ class BasicTest(BaseTest):
         self.assertAlmostEqual(gvx.GetNodeValue(2, 'x'), -2.75, places=3)
         # self.assertAlmostEqual(gvx.GetNodeValue(2, 'y'), -3.23, places=1)
 
+        gvx.Solve(UseADMM=False,useClustering=True,clusterSize=2) # Solve the problem with ADMM
+        # print gvx.PrintSolution() # Print entire solution on a node-by-node basis
+        self.assertAlmostEqual(gvx.GetTotalProblemValue(), 3.3125, places=2)
+        self.assertAlmostEqual(gvx.GetNodeValue(1, 'x'), -0.25, places=3)
+        # self.assertAlmostEqual(gvx.GetNodeValue(1, 'y'), -4.37, places=1)
+        self.assertAlmostEqual(gvx.GetNodeValue(2, 'x'), -2.75, places=3)
+        # self.assertAlmostEqual(gvx.GetNodeValue(2, 'y'), -3.23, places=1)
+
+        
     def test_shared_vars_unallowed(self):
         """ Test that two nodes cannot share a variable.
         """
@@ -166,6 +199,10 @@ class BasicTest(BaseTest):
         self.assertAlmostEqual(gvx.GetNodeValue(1, 'x'), 10, places=2)
         self.assertAlmostEqual(gvx.GetNodeValue(2, 'x'), 5, places=2)
 
+        gvx.Solve(UseADMM=False,useClustering=True,clusterSize=10)
+        self.assertAlmostEqual(gvx.GetTotalProblemValue(), 125, places=2)
+        self.assertAlmostEqual(gvx.GetNodeValue(1, 'x'), 10, places=2)
+        self.assertAlmostEqual(gvx.GetNodeValue(2, 'x'), 5, places=2)
 if __name__ == '__main__':
     # unittest.main()
     suite = unittest.TestLoader().loadTestsFromTestCase(BasicTest)

@@ -129,13 +129,16 @@ class TGraphVX(TUNGraph):
     # Option to use serial version or distributed ADMM.
     # maxIters optional parameter: Maximum iterations for distributed ADMM.
     def Solve(self, M=Minimize, UseADMM=True, NumProcessors=0, Rho=1.0,
-              MaxIters=250, EpsAbs=0.01, EpsRel=0.01, Verbose=False, SuperNodes=[]):
+              MaxIters=250, EpsAbs=0.01, EpsRel=0.01, Verbose=False, 
+              useClustering = False, clusterSize = 1000 ):
         global m_func
         m_func = M
 
         # Use ADMM if the appropriate parameter is specified and if there
         # are edges in the graph.
-        if __builtin__.len(SuperNodes) > 0:
+        #if __builtin__.len(SuperNodes) > 0:
+        if useClustering and clusterSize > 0:
+            SuperNodes = self.__ClusterGraph(clusterSize)
             self.__SolveClusterADMM(M,UseADMM,SuperNodes, NumProcessors, Rho, MaxIters,\
                                      EpsAbs, EpsRel, Verbose)
             return
@@ -179,7 +182,7 @@ class TGraphVX(TUNGraph):
                     val = numpy.array([var.value])
                 else:
                     val = numpy.array(var.value).reshape(-1,)
-                if not value:
+                if value is None:
                     value = val
                 else:
                     value = numpy.concatenate((value, val))
@@ -244,16 +247,16 @@ class TGraphVX(TUNGraph):
                 superNodeObjectives[supernid] += self.node_objectives[nid]
                 superNodeConstraints[supernid] += self.node_constraints[nid]
             for ( varId, varName, var, offset) in self.node_variables[nid]:
-                superVarName = varName+str(varID)
+                superVarName = varName+str(varId)
                 varToSuperVarMap[(nid,varName)] = (supernid,superVarName)
                 if supernid not in superNodeVariables:
-                    superNodeVariables[supernid] = [(varID, superVarName, var, offset)]
+                    superNodeVariables[supernid] = [(varId, superVarName, var, offset)]
                     superNodeValues[supernid] = value
                 else:
                     superNodeOffset = sum([superNodeVariables[supernid][k][2].size[0]* \
                                            superNodeVariables[supernid][k][2].size[1]\
                                            for k in xrange(__builtin__.len(superNodeVariables[supernid])) ])
-                    superNodeVariables[supernid] += [(varID, superVarName, var, offset+superNodeOffset)]
+                    superNodeVariables[supernid] += [(varId, superVarName, var, superNodeOffset)]
                     superNodeValues[supernid] = numpy.concatenate((superNodeValues[supernid],value))
                 
         #add all supernodes to the supergraph
@@ -262,7 +265,7 @@ class TGraphVX(TUNGraph):
                                superNodeConstraints[supernid])
             supergraph.node_variables[supernid] = superNodeVariables[supernid]
             supergraph.node_values[supernid] = superNodeValues[supernid]
-            
+                        
         #add all superedges to the supergraph    
         for superei in superEdgeConstraints:
             superSrcId,superDstId = superei
@@ -274,7 +277,8 @@ class TGraphVX(TUNGraph):
         if UseADMM == True:
             supergraph.__SolveADMM(numProcessors, rho_param, maxIters, eps_abs, eps_rel, verbose)
         else:
-            supergraph.Solve(M, False, numProcessors, rho_param, maxIters, eps_abs, eps_rel, verbose)
+            supergraph.Solve(M, False, numProcessors, rho_param, maxIters, eps_abs, eps_rel, verbose,
+                             useClustering=False)
         
         self.status = supergraph.status
         self.value = supergraph.value
@@ -802,7 +806,88 @@ class TGraphVX(TUNGraph):
                     self.SetEdgeObjective(etup[0], etup[1], ret)
         infile.close()
 
-
+    """return clusters of nodes of the original graph.Each cluster corresponds to 
+    a supernode in the supergraph"""
+    def __ClusterGraph(self,clusterSize):
+        #obtain a random shuffle of the nodes
+        nidArray = [ni.GetId() for ni in self.Nodes()]
+        numpy.random.shuffle(nidArray)
+        visitedNode = {}
+        for nid in nidArray:
+            visitedNode[nid] = False
+        superNodes = []
+        superNode,superNodeSize = [],0
+        for nid in nidArray:
+            if not visitedNode[nid]:
+                oddLevel, evenLevel, isOdd = [],[],True
+                oddLevel.append(nid)
+                visitedNode[nid] = True
+                #do a level order traversal and add nodes to the superNode until the 
+                #size of the supernode variables gets larger than clusterSize
+                while True:
+                    if isOdd:
+                        if __builtin__.len(oddLevel) > 0:
+                            while __builtin__.len(oddLevel) > 0:
+                                topId = oddLevel.pop(0)
+                                node = TUNGraph.GetNI(self,topId)
+                                varSize = sum([variable[2].size[0]* \
+                                               variable[2].size[1]\
+                                               for variable in self.node_variables[topId]])
+                                if varSize + superNodeSize <= clusterSize:
+                                    superNode.append(topId)
+                                    superNodeSize = varSize + superNodeSize
+                                else:
+                                    if __builtin__.len(superNode) > 0:
+                                        superNodes.append(superNode)
+                                    superNodeSize = varSize
+                                    superNode = [topId]
+                                neighbors = [node.GetNbrNId(j) \
+                                             for j in xrange(node.GetDeg())]
+                                for nbrId in neighbors:
+                                    if not visitedNode[nbrId]:
+                                        evenLevel.append(nbrId)
+                                        visitedNode[nbrId] = True
+                            isOdd = False
+                            #sort the nodes according to their variable size
+                            if __builtin__.len(evenLevel) > 0:
+                                evenLevel.sort(key=lambda nid : sum([variable[2].size[0]* \
+                                               variable[2].size[1] for variable \
+                                               in self.node_variables[nid]]))
+                        else:
+                            break
+                    else:
+                        if __builtin__.len(evenLevel) > 0:
+                            while __builtin__.len(evenLevel) > 0:
+                                topId = evenLevel.pop(0)
+                                node = TUNGraph.GetNI(self,topId)
+                                varSize = sum([variable[2].size[0]* \
+                                               variable[2].size[1]\
+                                               for variable in self.node_variables[topId]])
+                                if varSize + superNodeSize <= clusterSize:
+                                    superNode.append(topId)
+                                    superNodeSize = varSize + superNodeSize
+                                else:
+                                    if __builtin__.len(superNode) > 0:
+                                        superNodes.append(superNode)
+                                    superNodeSize = varSize
+                                    superNode = [topId]
+                                neighbors = [node.GetNbrNId(j) \
+                                             for j in xrange(node.GetDeg())]
+                                for nbrId in neighbors:
+                                    if not visitedNode[nbrId]:
+                                        oddLevel.append(nbrId)
+                                        visitedNode[nbrId] = True
+                            isOdd = True
+                            #sort the nodes according to their variable size
+                            if __builtin__.len(oddLevel) > 0:
+                                oddLevel.sort(key=lambda nid : sum([variable[2].size[0]* \
+                                               variable[2].size[1] for variable \
+                                               in self.node_variables[nid]]))
+                        else:
+                            break
+        if superNode not in superNodes:
+            superNodes.append(superNode)
+        return superNodes
 ## ADMM Global Variables and Functions ##
 
 # By default, the objective function is Minimize().
