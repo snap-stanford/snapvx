@@ -214,6 +214,8 @@ class TGraphVX(TUNGraph):
             etup = self.__GetEdgeTup(ei.GetSrcNId(), ei.GetDstNId())
             supersrcnid,superdstnid = nidToSuperidMap[etup[0]],nidToSuperidMap[etup[1]]
             if supersrcnid != superdstnid:    #the edge is a part of the cut
+                if supersrcnid > superdstnid:
+                    supersrcnid,superdstnid = superdstnid,supersrcnid
                 if (supersrcnid,superdstnid) not in superEdgeConstraints:
                     superEdgeConstraints[(supersrcnid,superdstnid)] = self.edge_constraints[etup]
                     superEdgeObjectives[(supersrcnid,superdstnid)] = self.edge_objectives[etup]
@@ -274,7 +276,7 @@ class TGraphVX(TUNGraph):
                                 superEdgeConstraints[superei])
                  
         #call solver for this supergraph
-        if UseADMM == True:
+        if UseADMM and supergraph.GetEdges() != 0:
             supergraph.__SolveADMM(numProcessors, rho_param, maxIters, eps_abs, eps_rel, verbose)
         else:
             supergraph.Solve(M, False, numProcessors, rho_param, maxIters, eps_abs, eps_rel, verbose,
