@@ -140,7 +140,7 @@ TGraphVX
    The following methods solve the optimization problem represented by the
    :class:`TGraphVX` and offer various ways to extract the solution:
 
-     .. describe:: Solve(M=Minimize, UseADMM=True, NumProcessors=0, Rho=1.0, MaxIters=250, EpsAbs=0.01, EpsRel=0.01, Verbose=False, UseClustering=False, clusterSize = 1000)
+     .. describe:: Solve(M=Minimize, UseADMM=True, NumProcessors=0, Rho=1.0, MaxIters=250, EpsAbs=0.01, EpsRel=0.01, Verbose=False, UseClustering=False, ClusterSize = 1000)
 
         Adds CVXPY Objectives and constraints over all nodes and edges to form
         one collective CVXPY Problem and solves it. *M* can be the CVXPY

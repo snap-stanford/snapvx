@@ -130,15 +130,15 @@ class TGraphVX(TUNGraph):
     # maxIters optional parameter: Maximum iterations for distributed ADMM.
     def Solve(self, M=Minimize, UseADMM=True, NumProcessors=0, Rho=1.0,
               MaxIters=250, EpsAbs=0.01, EpsRel=0.01, Verbose=False, 
-              useClustering = False, clusterSize = 1000 ):
+              UseClustering = False, ClusterSize = 1000 ):
         global m_func
         m_func = M
 
         # Use ADMM if the appropriate parameter is specified and if there
         # are edges in the graph.
         #if __builtin__.len(SuperNodes) > 0:
-        if useClustering and clusterSize > 0:
-            SuperNodes = self.__ClusterGraph(clusterSize)
+        if UseClustering and ClusterSize > 0:
+            SuperNodes = self.__ClusterGraph(ClusterSize)
             self.__SolveClusterADMM(M,UseADMM,SuperNodes, NumProcessors, Rho, MaxIters,\
                                      EpsAbs, EpsRel, Verbose)
             return
@@ -278,7 +278,7 @@ class TGraphVX(TUNGraph):
             supergraph.__SolveADMM(numProcessors, rho_param, maxIters, eps_abs, eps_rel, verbose)
         else:
             supergraph.Solve(M, False, numProcessors, rho_param, maxIters, eps_abs, eps_rel, verbose,
-                             useClustering=False)
+                             UseClustering=False)
         
         self.status = supergraph.status
         self.value = supergraph.value
