@@ -26,31 +26,19 @@ v.value = val/sum(val)
 
 
 #------------ Solve Using SnapVX (approach based on: http://jmlr.org/proceedings/papers/v32/gleich14.pdf) --------------
-# Define s,t nodes with id num_nodes, num_nodes+1 respectively
-(s_id, t_id) = (num_nodes, num_nodes + 1)
-x_s=Variable(1,name='x_s') 
-gvx.AddNode(s_id,norm(x_s-x_s),Constraints = [x_s==1]) # Constraint that x_s == 1
-x_t=Variable(1,name='x_t')
-gvx.AddNode(t_id,norm(x_t-x_t),Constraints = [x_t==0]) # Constraint that x_t == 0
-
-# For each node, make an edge between the node and new nodes s, t respectively
+# Set node objectives
 for ni in gvx.Nodes():
-  if ni.GetId() < num_nodes:
     n_id=ni.GetId()
     x = Variable(1,name='x')
-    gvx.SetNodeObjective(n_id,norm(x-x)) # Node objective is always 0
     d=d_list[n_id]
-    (obj1, obj2) = (alpha*v.value[n_id]*square(x_s-x), alpha*(d-v.value[n_id])*square(x_t-x))
-    gvx.AddEdge(s_id, n_id,Objective = obj1,Constraints = [])
-    gvx.AddEdge(t_id, n_id,Objective = obj2,Constraints = [])  
+    gvx.SetNodeObjective(n_id,alpha*v.value[n_id]*square(1-x) + alpha*(d-v.value[n_id])*square(x))
 
 # For each edge in the original graph, define objective function
 for ei in gvx.Edges():    
-    (src_id, dst_id) = (ei.GetSrcNId(), ei.GetDstNId())   
-    if (src_id < num_nodes) & (dst_id < num_nodes): # Make sure edge does not include s or t
-        (src_vars, dst_vars) = (gvx.GetNodeVariables(src_id), gvx.GetNodeVariables(dst_id))
-        edge_obj=  c[(src_id, dst_id)]*square(src_vars['x']-dst_vars['x'])
-        gvx.SetEdgeObjective(src_id,dst_id,edge_obj)
+    (src_id, dst_id) = (ei.GetSrcNId(), ei.GetDstNId())     
+    (src_vars, dst_vars) = (gvx.GetNodeVariables(src_id), gvx.GetNodeVariables(dst_id))
+    edge_obj=  c[(src_id, dst_id)]*square(src_vars['x']-dst_vars['x'])
+    gvx.SetEdgeObjective(src_id,dst_id,edge_obj)
 
 gvx.Solve(UseADMM=False) # If UseADMM=True, set EpsAbs and EpsRel to 0.0002 for better convergence
 
