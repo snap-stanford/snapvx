@@ -440,18 +440,18 @@ class TGraphVX(TUNGraph):
             pool.close()
             pool.join()
 
-        # Insert into hash to support GetNodeValue()
-        for entry in node_list:
-            nid = entry[X_NID]
-            index = entry[X_IND]
-            size = entry[X_LEN]
-            self.node_values[nid] = getValue(node_vals, index, size)
-        # Set TGraphVX status and value to match CVXPY
-        if num_iterations <= maxIters:
-            self.status = 'Optimal'
-        else:
-            self.status = 'Incomplete: max iterations reached'
-        self.value = self.GetTotalProblemValue()
+            # Insert into hash to support GetNodeValue()
+            for entry in node_list:
+                nid = entry[X_NID]
+                index = entry[X_IND]
+                size = entry[X_LEN]
+                self.node_values[nid] = getValue(node_vals, index, size)
+            # Set TGraphVX status and value to match CVXPY
+            if num_iterations <= maxIters:
+                self.status = 'Optimal'
+            else:
+                self.status = 'Incomplete: max iterations reached'
+            self.value = self.GetTotalProblemValue()
 
     # Iterate through all variables and update values.
     # Sum all objective values over all nodes and edges.
