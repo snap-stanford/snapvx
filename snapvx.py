@@ -404,41 +404,41 @@ class TGraphVX(TUNGraph):
                 entry.append(einfo[indices[0]])
                 entry.append(einfo[indices[1]])
             node_list.append(entry)
-
-        pool = multiprocessing.Pool(num_processors)
-        num_iterations = 0
-        z_old = getValue(edge_z_vals, 0, z_length)
-        # Proceed until convergence criteria are achieved or the maximum
-        # number of iterations has passed
-        while num_iterations <= maxIters:
-            # Check convergence criteria
-            if num_iterations != 0:
-                x = getValue(node_vals, 0, x_length)
-                z = getValue(edge_z_vals, 0, z_length)
-                u = getValue(edge_u_vals, 0, z_length)
-                # Determine if algorithm should stop. Retrieve primal and dual
-                # residuals and thresholds
-                stop, res_pri, e_pri, res_dual, e_dual =\
-                    self.__CheckConvergence(A, A_tr, x, z, z_old, u, rho,\
+        if __name__ == '__main__':
+            pool = multiprocessing.Pool(num_processors)
+            num_iterations = 0
+            z_old = getValue(edge_z_vals, 0, z_length)
+            # Proceed until convergence criteria are achieved or the maximum
+            # number of iterations has passed
+            while num_iterations <= maxIters:
+                # Check convergence criteria
+                if num_iterations != 0:
+                    x = getValue(node_vals, 0, x_length)
+                    z = getValue(edge_z_vals, 0, z_length)
+                    u = getValue(edge_u_vals, 0, z_length)
+                    # Determine if algorithm should stop. Retrieve primal and dual
+                    # residuals and thresholds
+                    stop, res_pri, e_pri, res_dual, e_dual =\
+                        self.__CheckConvergence(A, A_tr, x, z, z_old, u, rho,\
                                             x_length, z_length,
                                             eps_abs, eps_rel, verbose)
-                if stop: break
-                z_old = z
-                # Update rho and scale u-values
-                rho_new = rho_update_func(rho, res_pri, e_pri, res_dual, e_dual)
-                scale = float(rho) / rho_new
-                edge_u_vals[:] = [i * scale for i in edge_u_vals]
-                rho = rho_new
-            num_iterations += 1
+                    if stop: break
+                    z_old = z
+                    # Update rho and scale u-values
+                    rho_new = rho_update_func(rho, res_pri, e_pri, res_dual, e_dual)
+                    scale = float(rho) / rho_new
+                    edge_u_vals[:] = [i * scale for i in edge_u_vals]
+                    rho = rho_new
+                num_iterations += 1
 
-            if verbose:
-                # Debugging information prints current iteration #
-                print 'Iteration %d' % num_iterations
-            pool.map(ADMM_x, node_list)
-            pool.map(ADMM_z, edge_list)
-            pool.map(ADMM_u, edge_list)
-        pool.close()
-        pool.join()
+                if verbose:
+                    # Debugging information prints current iteration #
+                    print 'Iteration %d' % num_iterations
+                pool.map(ADMM_x, node_list)
+                pool.map(ADMM_z, edge_list)
+                pool.map(ADMM_u, edge_list)
+            pool.close()
+            pool.join()
 
         # Insert into hash to support GetNodeValue()
         for entry in node_list:
