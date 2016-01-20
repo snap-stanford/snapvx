@@ -7,17 +7,17 @@ snapvx
 1. Download the latest release [here](http://snap.stanford.edu/snapvx/release/).
 2. Uncompress the `snapvx-*.tar.gz` file.
 
-    tar zxvf snapvx-0.3.tar.gz
+        tar zxvf snapvx-0.3.tar.gz
 
 3. Run `setup.py install` from inside the top-level directory.
 
-    cd snapvx-0.3
-    sudo python setup.py install
+        cd snapvx-0.3
+        sudo python setup.py install
 
 4. Test the installation. The included unit tests will test basic functionality to ensure that SnapVX and its dependencies are working correctly.
 
-    cd Tests
-    python snapvx_test.py
+        cd Tests
+        python snapvx_test.py
 
 
 #### USAGE
