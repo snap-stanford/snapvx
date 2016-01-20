@@ -13,8 +13,73 @@ class BasicTest(BaseTest):
 
     DATA_DIR = 'TestData'
 
+    def test_snap(self):
+        """ Test that snap.py installed correctly.
+        """
+        import snap
+        num_nodes = 20
+
+        # Generate different undirected graphs
+        full_graph = snap.GenFull(snap.PUNGraph, num_nodes)
+        star_graph = snap.GenStar(snap.PUNGraph, num_nodes)
+        random_graph = snap.GenRndGnm(snap.PUNGraph, num_nodes, num_nodes * 3)
+
+        # Basic statistics on the graphs
+        self.assertEqual(snap.CntInDegNodes(full_graph, num_nodes - 1), num_nodes)
+        self.assertEqual(snap.CntOutDegNodes(full_graph, num_nodes - 1), num_nodes)
+        self.assertEqual(snap.GetMxInDegNId(star_graph), 0)
+        self.assertEqual(snap.GetMxOutDegNId(star_graph), 0)
+
+        # Iterator
+        degree_to_count = snap.TIntPrV()
+        snap.GetInDegCnt(full_graph, degree_to_count)
+        # There should be only one entry (num_nodes - 1, num_nodes)
+        for item in degree_to_count:
+            self.assertEqual(num_nodes - 1, item.GetVal1())
+            self.assertEqual(num_nodes, item.GetVal2())
+
+        # Rewiring
+        rewired_graph = snap.GenRewire(random_graph)
+        for n1 in random_graph.Nodes():
+            for n2 in rewired_graph.Nodes():
+                if n1.GetId() == n2.GetId():
+                    self.assertEqual(n1.GetOutDeg() + n1.GetInDeg(),
+                                     n2.GetOutDeg() + n2.GetInDeg())
+
+    def test_cvxpy(self):
+        """ Test that CVXPY installed correctly.
+        """
+        ## Test taken from test_advanded() [sic] from cvxpy/tests/test_examples.py
+        ## of the CVXPY repository.
+
+        # Solving a problem with different solvers.
+        x = Variable(2)
+        obj = Minimize(x[0] + norm(x, 1))
+        constraints = [x >= 2]
+        prob = Problem(obj, constraints)
+
+        # Solve with ECOS.
+        prob.solve(solver=ECOS)
+        print("optimal value with ECOS:", prob.value)
+        self.assertAlmostEqual(prob.value, 6)
+
+        # Solve with ECOS_BB.
+        prob.solve(solver=ECOS_BB)
+        print("optimal value with ECOS_BB:", prob.value)
+        self.assertAlmostEqual(prob.value, 6)
+
+        # Solve with CVXOPT.
+        prob.solve(solver=CVXOPT)
+        print("optimal value with CVXOPT:", prob.value)
+        self.assertAlmostEqual(prob.value, 6)
+
+        # Solve with SCS.
+        prob.solve(solver=SCS)
+        print("optimal value with SCS:", prob.value)
+        self.assertAlmostEqual(prob.value, 6, places=2)
+
     def test_basic(self):
-        """ Test a basic graph problem.
+        """ Test a basic SnapVX graph problem.
         """
         # Create new graph
         gvx = TGraphVX()
@@ -41,11 +106,11 @@ class BasicTest(BaseTest):
         gvx.Solve(UseADMM=True,UseClustering=True,ClusterSize=2) # Solve the problem with ADMM and clustering
         self.assertAlmostEqual(x1.value, -0.5, places=1)
         self.assertAlmostEqual(x2.value, -1, places=1)
-        
+
         gvx.Solve(UseADMM=False) # Solve the problem with ADMM
         self.assertAlmostEqual(x1.value, -0.5, places=3)
         self.assertAlmostEqual(x2.value, -1, places=3)
-               
+
         gvx.Solve(UseADMM=False,UseClustering=True,ClusterSize=2) # Solve the problem with ADMM
         self.assertAlmostEqual(x1.value, -0.5, places=3)
         self.assertAlmostEqual(x2.value, -1, places=3)
@@ -84,7 +149,7 @@ class BasicTest(BaseTest):
         gvx.Solve(UseADMM=True,UseClustering=True,ClusterSize=5) # Solve the problem
         self.assertAlmostEqual(gvx.GetNodeValue(1, 'x'), -0.5, places=1)
         self.assertAlmostEqual(gvx.GetNodeValue(2, 'x'), -1, places=1)
-        
+
         gvx.Solve(UseADMM=False) # Solve the problem with ADMM
         self.assertAlmostEqual(gvx.GetNodeValue(1, 'x'), -0.5, places=3)
         self.assertAlmostEqual(gvx.GetNodeValue(2, 'x'), -1, places=3)
@@ -92,8 +157,8 @@ class BasicTest(BaseTest):
         gvx.Solve(UseADMM=False,UseClustering=True,ClusterSize=5) # Solve the problem with ADMM and clustering
         self.assertAlmostEqual(gvx.GetNodeValue(1, 'x'), -0.5, places=3)
         self.assertAlmostEqual(gvx.GetNodeValue(2, 'x'), -1, places=3)
-    
-        
+
+
     def test_multi_vars(self):
         """ Test multiple variables.
         """
@@ -136,7 +201,7 @@ class BasicTest(BaseTest):
         # self.assertAlmostEqual(gvx.GetNodeValue(1, 'y'), -5.5625, places=3)
         self.assertAlmostEqual(gvx.GetNodeValue(2, 'x'), -2.75, places=1)
         # self.assertAlmostEqual(gvx.GetNodeValue(2, 'y'), -4.4375, places=3)
-        
+
         gvx.Solve(UseADMM=False) # Solve the problem with ADMM
         # print gvx.PrintSolution() # Print entire solution on a node-by-node basis
         self.assertAlmostEqual(gvx.GetTotalProblemValue(), 3.3125, places=2)
@@ -153,7 +218,7 @@ class BasicTest(BaseTest):
         self.assertAlmostEqual(gvx.GetNodeValue(2, 'x'), -2.75, places=3)
         # self.assertAlmostEqual(gvx.GetNodeValue(2, 'y'), -3.23, places=1)
 
-        
+
     def test_shared_vars_unallowed(self):
         """ Test that two nodes cannot share a variable.
         """
@@ -190,6 +255,24 @@ class BasicTest(BaseTest):
         self.assertAlmostEqual(gvx.GetTotalProblemValue(), 125, places=2)
         self.assertAlmostEqual(gvx.GetNodeValue(1, 'x'), 10, places=2)
         self.assertAlmostEqual(gvx.GetNodeValue(2, 'x'), 5, places=2)
+
+    def test_illegal_edge(self):
+        """ Test that invalid edges cannot be created.
+        """
+        gvx = TGraphVX()
+        x = Variable(name='x')
+        # Check that resetting an Objective is still okay.
+        gvx.AddNode(1, square(x))
+        gvx.SetNodeObjective(1, square(x - 2))
+        try:
+            # Add an edge when one of the specified nodes does not exist.
+            gvx.AddEdge(1, 2, Objective=0, Constraints=[])
+        except:
+            # If an exception is thrown, then the test passes.
+            pass
+        else:
+            # If an exception is not thrown, then the test fails.
+            self.assertFalse(True, 'An illegal edge was added.')
 
     def test_clustering(self):
         """ Test that UseClustering is working.
