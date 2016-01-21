@@ -6,3 +6,9 @@ Examples/BulkLoadEdges.edges
 Examples/BulkLoading.py
 Examples/HelloWorld.py
 Examples/LaplacianRegularization.py
+Tests/base_test.py
+Tests/snapvx_test.py
+Tests/TestData/basic_bulk_load.csv
+Tests/TestData/basic_bulk_load.edges
+Tests/TestData/multi_vars.csv
+Tests/TestData/multi_vars.edges
