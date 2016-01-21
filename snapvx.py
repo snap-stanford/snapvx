@@ -26,6 +26,7 @@ from cvxpy import *
 
 import math
 import multiprocessing
+import os
 import numpy
 from scipy.sparse import lil_matrix
 import sys
@@ -404,7 +405,9 @@ class TGraphVX(TUNGraph):
                 entry.append(einfo[indices[0]])
                 entry.append(einfo[indices[1]])
             node_list.append(entry)
-
+        #if __name__ == '__main__':
+        #print __name__
+        #multiprocessing.freeze_support()
         pool = multiprocessing.Pool(num_processors)
         num_iterations = 0
         z_old = getValue(edge_z_vals, 0, z_length)
@@ -434,9 +437,14 @@ class TGraphVX(TUNGraph):
             if verbose:
                 # Debugging information prints current iteration #
                 print 'Iteration %d' % num_iterations
-            pool.map(ADMM_x, node_list)
-            pool.map(ADMM_z, edge_list)
-            pool.map(ADMM_u, edge_list)
+            if os.name != 'nt':
+                pool.map(ADMM_x, node_list)
+                pool.map(ADMM_z, edge_list)
+                pool.map(ADMM_u, edge_list)
+            else:
+                map(ADMM_x, node_list)
+                map(ADMM_z, edge_list)
+                map(ADMM_u, edge_list)
         pool.close()
         pool.join()
 
