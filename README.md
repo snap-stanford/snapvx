@@ -16,6 +16,8 @@ snapvx
 
 4. Test the installation. The included unit tests will test basic functionality to ensure that SnapVX and its dependencies are working correctly.
 
+Note: to run SnapVX locally, without installing it system-wide, just copy **snapvx.py** to your working directory.
+
         cd Tests
         python snapvx_test.py
 
