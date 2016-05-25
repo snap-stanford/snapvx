@@ -500,9 +500,9 @@ class TGraphVX(TUNGraph):
         res_dual = norm(s)
         if verbose:
             # Debugging information to print convergence criteria values
-            print '  r:', res_pri
+            print '  r:', res_pri,p
             print '  e_pri:', e_pri
-            print '  s:', res_dual
+            print '  s:', res_dual,n
             print '  e_dual:', e_dual
         stop = (res_pri <= e_pri) and (res_dual <= e_dual)
         return (stop, res_pri, e_pri, res_dual, e_dual)
@@ -757,7 +757,7 @@ class TGraphVX(TUNGraph):
                     # Singleton object = assume it is the objective
                     self.SetEdgeObjective(src_id, dst_id, ret)
             return
-        infile = open(Filename, 'r')
+        infile = open(Filename)
         if EdgeIDs == None and (SrcIdCol == None or DstIdCol == None):
             stop = False
             for ei in self.Edges():
@@ -1056,10 +1056,11 @@ def ADMM_u(entry):
           getValue(node_vals, entry[Z_XIIND], size_i) -\
           getValue(edge_z_vals, entry[Z_ZIJIND], size_i)
     writeValue(edge_u_vals, entry[Z_UIJIND], uij, size_i)
-
+    #print uij,entry
     size_j = entry[Z_JLEN]
     uji = getValue(edge_u_vals, entry[Z_UJIIND], size_j) +\
           getValue(node_vals, entry[Z_XJIND], size_j) -\
           getValue(edge_z_vals, entry[Z_ZJIIND], size_j)
     writeValue(edge_u_vals, entry[Z_UJIIND], uji, size_j)
+    #print uji,entry
     return entry
