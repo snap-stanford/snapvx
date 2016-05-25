@@ -77,7 +77,7 @@ class BasicTest(BaseTest):
         self.assertAlmostEqual(prob.value, 6, places=2)
 
 
-if __name__ == '__main__':
+#if __name__ == '__main__':
     # unittest.main()
-    suite = unittest.TestLoader().loadTestsFromTestCase(BasicTest)
-    unittest.TextTestRunner(verbosity=2).run(suite)
+#    suite = unittest.TestLoader().loadTestsFromTestCase(BasicTest)
+#    unittest.TextTestRunner(verbosity=2).run(suite)

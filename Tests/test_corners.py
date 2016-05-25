@@ -68,7 +68,7 @@ class CornerTest(BaseTest):
             # If an exception is not thrown, then the test fails.
             self.assertFalse(True, 'An illegal edge was added.')
 
-if __name__ == '__main__':
+#if __name__ == '__main__':
 #    # unittest.main()
-    suite = unittest.TestLoader().loadTestsFromTestCase(CornerTest)
-    unittest.TextTestRunner(verbosity=2).run(suite)
+#    suite = unittest.TestLoader().loadTestsFromTestCase(CornerTest)
+#    unittest.TextTestRunner(verbosity=2).run(suite)

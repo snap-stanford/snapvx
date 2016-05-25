@@ -6,12 +6,13 @@ from base_test import BaseTest
 import unittest
 import numpy as np
 import os.path
+import os
 from snapvx import *
 from cvxpy import *
 
 class SolverTest(BaseTest):
 
-    DATA_DIR = 'TestData'
+    DATA_DIR = os.getcwd()+'/Tests/TestData'
 
     def test_basic_solver(self):
         """ Test a basic SnapVX graph problem.
@@ -177,7 +178,7 @@ class SolverTest(BaseTest):
             # If an exception is not thrown, then the test fails.
             self.assertFalse(True, 'An illegal edge was added.')
 
-if __name__ == '__main__':
+#if __name__ == '__main__':
 #    # unittest.main()
-    suite = unittest.TestLoader().loadTestsFromTestCase(SolverTest)
-    unittest.TextTestRunner(verbosity=2).run(suite)
+#    suite = unittest.TestLoader().loadTestsFromTestCase(SolverTest)
+#    unittest.TextTestRunner(verbosity=2).run(suite)

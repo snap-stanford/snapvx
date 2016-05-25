@@ -30,7 +30,7 @@ class ClusteringTest(BaseTest):
         self.assertAlmostEqual(gvx.GetNodeValue(19, 'x'), -0.0299, places=1)
 
 
-if __name__ == '__main__':
+#if __name__ == '__main__':
 #    # unittest.main()
-    suite = unittest.TestLoader().loadTestsFromTestCase(ClusteringTest)
-    unittest.TextTestRunner(verbosity=2).run(suite)
+#    suite = unittest.TestLoader().loadTestsFromTestCase(ClusteringTest)
+#    unittest.TextTestRunner(verbosity=2).run(suite)
