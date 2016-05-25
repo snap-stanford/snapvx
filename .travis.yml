@@ -1,6 +1,8 @@
 language: python
 python:
   - "2.7"
+virtualenv:
+  system_site_packages: true
 sudo: required
 before_install:
   - "wget https://snap.stanford.edu/snappy/release/snap-1.2-2.4-centos6.5-x64-py2.6.tar.gz"
