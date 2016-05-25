@@ -1,4 +1,3 @@
-[![Build Status](https://travis-ci.org/abhisg/snapvx.svg?branch=master)](https://travis-ci.org/abhisg/snapvx)
 snapvx
 =====================
 
