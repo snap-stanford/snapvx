@@ -38,17 +38,10 @@ class SolverTest(BaseTest):
         self.assertAlmostEqual(x1.value, -0.5, places=1)
         self.assertAlmostEqual(x2.value, -1, places=1)
 
-        gvx.Solve(UseADMM=True,UseClustering=True,ClusterSize=2) # Solve the problem with ADMM and clustering
-        self.assertAlmostEqual(x1.value, -0.5, places=1)
-        self.assertAlmostEqual(x2.value, -1, places=1)
-
         gvx.Solve(UseADMM=False) # Solve the problem with ADMM
         self.assertAlmostEqual(x1.value, -0.5, places=3)
         self.assertAlmostEqual(x2.value, -1, places=3)
 
-        gvx.Solve(UseADMM=False,UseClustering=True,ClusterSize=2) # Solve the problem with ADMM
-        self.assertAlmostEqual(x1.value, -0.5, places=3)
-        self.assertAlmostEqual(x2.value, -1, places=3)
 
     def test_bulk_loading(self):
         """ Test bulk loading.
@@ -68,8 +61,8 @@ class SolverTest(BaseTest):
             return square(norm(src['x'] - dst['x']))
 
         # Form a graph with two nodes and an edge between them.
-        gvx = LoadEdgeList(os.path.join(BasicTest.DATA_DIR, 'basic_bulk_load.edges'))
-        gvx.AddNodeObjectives(os.path.join(BasicTest.DATA_DIR, 'basic_bulk_load.csv'),
+        gvx = LoadEdgeList(os.path.join(self.DATA_DIR, 'basic_bulk_load.edges'))
+        gvx.AddNodeObjectives(os.path.join(self.DATA_DIR, 'basic_bulk_load.csv'),
                               objective_node_func)
         gvx.AddEdgeObjectives(objective_edge_func)
 
@@ -81,17 +74,10 @@ class SolverTest(BaseTest):
         self.assertAlmostEqual(gvx.GetNodeValue(1, 'x'), -0.5, places=3)
         self.assertAlmostEqual(gvx.GetNodeValue(2, 'x'), -1, places=3)
 
-        gvx.Solve(UseADMM=True,UseClustering=True,ClusterSize=5) # Solve the problem
-        self.assertAlmostEqual(gvx.GetNodeValue(1, 'x'), -0.5, places=1)
-        self.assertAlmostEqual(gvx.GetNodeValue(2, 'x'), -1, places=1)
-
         gvx.Solve(UseADMM=False) # Solve the problem with ADMM
         self.assertAlmostEqual(gvx.GetNodeValue(1, 'x'), -0.5, places=3)
         self.assertAlmostEqual(gvx.GetNodeValue(2, 'x'), -1, places=3)
 
-        gvx.Solve(UseADMM=False,UseClustering=True,ClusterSize=5) # Solve the problem with ADMM and clustering
-        self.assertAlmostEqual(gvx.GetNodeValue(1, 'x'), -0.5, places=3)
-        self.assertAlmostEqual(gvx.GetNodeValue(2, 'x'), -1, places=3)
 
 
     def test_multi_vars(self):
@@ -111,8 +97,8 @@ class SolverTest(BaseTest):
             return square(norm(src['x'] - dst['x'] + 2 * src['y'] - 2 * dst['y']))
 
         # Form a graph with two nodes and an edge between them.
-        gvx = LoadEdgeList(os.path.join(BasicTest.DATA_DIR, 'multi_vars.edges'))
-        gvx.AddNodeObjectives(os.path.join(BasicTest.DATA_DIR, 'multi_vars.csv'),
+        gvx = LoadEdgeList(os.path.join(self.DATA_DIR, 'multi_vars.edges'))
+        gvx.AddNodeObjectives(os.path.join(self.DATA_DIR, 'multi_vars.csv'),
                               objective_node_func,
                               NodeIDs=[1,2])
         gvx.AddEdgeObjectives(objective_edge_func)
@@ -129,13 +115,6 @@ class SolverTest(BaseTest):
         self.assertAlmostEqual(gvx.GetNodeValue(2, 'x'), -2.75, places=1)
         # self.assertAlmostEqual(gvx.GetNodeValue(2, 'y'), -4.4375, places=3)
 
-        gvx.Solve(UseADMM=True,UseClustering=True,ClusterSize=5) # Solve the problem
-        #print gvx.PrintSolution() # Print entire solution on a node-by-node basis
-        self.assertAlmostEqual(gvx.GetTotalProblemValue(), 3.3125, places=2)
-        self.assertAlmostEqual(gvx.GetNodeValue(1, 'x'), -0.25, places=1)
-        # self.assertAlmostEqual(gvx.GetNodeValue(1, 'y'), -5.5625, places=3)
-        self.assertAlmostEqual(gvx.GetNodeValue(2, 'x'), -2.75, places=1)
-        # self.assertAlmostEqual(gvx.GetNodeValue(2, 'y'), -4.4375, places=3)
 
         gvx.Solve(UseADMM=False) # Solve the problem with ADMM
         # print gvx.PrintSolution() # Print entire solution on a node-by-node basis
@@ -145,13 +124,6 @@ class SolverTest(BaseTest):
         self.assertAlmostEqual(gvx.GetNodeValue(2, 'x'), -2.75, places=3)
         # self.assertAlmostEqual(gvx.GetNodeValue(2, 'y'), -3.23, places=1)
 
-        gvx.Solve(UseADMM=False,UseClustering=True,ClusterSize=2) # Solve the problem with ADMM
-        # print gvx.PrintSolution() # Print entire solution on a node-by-node basis
-        self.assertAlmostEqual(gvx.GetTotalProblemValue(), 3.3125, places=2)
-        self.assertAlmostEqual(gvx.GetNodeValue(1, 'x'), -0.25, places=3)
-        # self.assertAlmostEqual(gvx.GetNodeValue(1, 'y'), -4.37, places=1)
-        self.assertAlmostEqual(gvx.GetNodeValue(2, 'x'), -2.75, places=3)
-        # self.assertAlmostEqual(gvx.GetNodeValue(2, 'y'), -3.23, places=1)
 
 
     def test_shared_vars_unallowed(self):
@@ -186,10 +158,6 @@ class SolverTest(BaseTest):
         self.assertAlmostEqual(gvx.GetNodeValue(1, 'x'), 10, places=2)
         self.assertAlmostEqual(gvx.GetNodeValue(2, 'x'), 5, places=2)
 
-        gvx.Solve(UseADMM=False,UseClustering=True,ClusterSize=10)
-        self.assertAlmostEqual(gvx.GetTotalProblemValue(), 125, places=2)
-        self.assertAlmostEqual(gvx.GetNodeValue(1, 'x'), 10, places=2)
-        self.assertAlmostEqual(gvx.GetNodeValue(2, 'x'), 5, places=2)
 
     def test_illegal_edge(self):
         """ Test that invalid edges cannot be created.
@@ -209,60 +177,7 @@ class SolverTest(BaseTest):
             # If an exception is not thrown, then the test fails.
             self.assertFalse(True, 'An illegal edge was added.')
 
-    def test_clustering(self):
-        """ Test that UseClustering is working.
-        """
-        def laplace_reg(src, dst, data):
-            obj = square(src['x'] - dst['x'])
-            return (obj, [])
-
-        np.random.seed(1)
-        (num_nodes, num_edges) = (20,50)
-        gvx = TGraphVX(GenRndGnm(PUNGraph, num_nodes, num_edges))
-        for i in range(num_nodes):
-            x = Variable(1,name='x')
-            a = np.random.randn(1)
-            gvx.SetNodeObjective(i, square(x-a))
-
-        gvx.AddEdgeObjectives(laplace_reg)
-
-        gvx.Solve(UseADMM=True, UseClustering=True, ClusterSize=1)
-        self.assertAlmostEqual(gvx.GetTotalProblemValue(), 19.5434, places=1)
-        self.assertAlmostEqual(gvx.GetNodeValue(3, 'x'), -0.2992, places=1)
-        self.assertAlmostEqual(gvx.GetNodeValue(10, 'x'), 0.1860, places=1)
-        self.assertAlmostEqual(gvx.GetNodeValue(19, 'x'), -0.0299, places=1)
-
-        gvx.Solve(UseADMM=True, UseClustering=True, ClusterSize=2)
-        self.assertAlmostEqual(gvx.GetTotalProblemValue(), 19.5434, places=1)
-        self.assertAlmostEqual(gvx.GetNodeValue(3, 'x'), -0.2992, places=1)
-        self.assertAlmostEqual(gvx.GetNodeValue(10, 'x'), 0.1860, places=1)
-        self.assertAlmostEqual(gvx.GetNodeValue(19, 'x'), -0.0299, places=1)
-
-        gvx.Solve(UseADMM=True, UseClustering=True, ClusterSize=6)
-        self.assertAlmostEqual(gvx.GetTotalProblemValue(), 19.5434, places=1)
-        self.assertAlmostEqual(gvx.GetNodeValue(3, 'x'), -0.2992, places=1)
-        self.assertAlmostEqual(gvx.GetNodeValue(10, 'x'), 0.1860, places=1)
-        self.assertAlmostEqual(gvx.GetNodeValue(19, 'x'), -0.0299, places=1)
-
-        gvx.Solve(UseADMM=True, UseClustering=True, ClusterSize=15)
-        self.assertAlmostEqual(gvx.GetTotalProblemValue(), 19.5434, places=1)
-        self.assertAlmostEqual(gvx.GetNodeValue(3, 'x'), -0.2992, places=1)
-        self.assertAlmostEqual(gvx.GetNodeValue(10, 'x'), 0.1860, places=1)
-        self.assertAlmostEqual(gvx.GetNodeValue(19, 'x'), -0.0299, places=1)
-
-        gvx.Solve(UseADMM=True, UseClustering=True) #ClusterSize defaults to 1000
-        self.assertAlmostEqual(gvx.GetTotalProblemValue(), 19.5434, places=1)
-        self.assertAlmostEqual(gvx.GetNodeValue(3, 'x'), -0.2992, places=1)
-        self.assertAlmostEqual(gvx.GetNodeValue(10, 'x'), 0.1860, places=1)
-        self.assertAlmostEqual(gvx.GetNodeValue(19, 'x'), -0.0299, places=1)
-
-        gvx.Solve(UseADMM=False)
-        self.assertAlmostEqual(gvx.GetTotalProblemValue(), 19.5434, places=3)
-        self.assertAlmostEqual(gvx.GetNodeValue(3, 'x'), -0.2992, places=3)
-        self.assertAlmostEqual(gvx.GetNodeValue(10, 'x'), 0.1860, places=3)
-        self.assertAlmostEqual(gvx.GetNodeValue(19, 'x'), -0.0299, places=3)
-
-#if __name__ == '__main__':
+if __name__ == '__main__':
 #    # unittest.main()
-#    suite = unittest.TestLoader().loadTestsFromTestCase(BasicTest)
-#    unittest.TextTestRunner(verbosity=2).run(suite)
+    suite = unittest.TestLoader().loadTestsFromTestCase(SolverTest)
+    unittest.TextTestRunner(verbosity=2).run(suite)

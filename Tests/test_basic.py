@@ -14,8 +14,7 @@ class BasicTest(BaseTest):
     DATA_DIR = 'TestData'
 
     def test_snap(self):
-        """ Test that snap.py installed correctly.
-        """
+        #Test that snap.py installed correctly.
         import snap
         num_nodes = 20
 
@@ -45,7 +44,6 @@ class BasicTest(BaseTest):
                 if n1.GetId() == n2.GetId():
                     self.assertEqual(n1.GetOutDeg() + n1.GetInDeg(),
                                      n2.GetOutDeg() + n2.GetInDeg())
-
     def test_cvxpy(self):
         """ Test that CVXPY installed correctly.
         """
@@ -79,7 +77,7 @@ class BasicTest(BaseTest):
         self.assertAlmostEqual(prob.value, 6, places=2)
 
 
-#if __name__ == '__main__':
-#    # unittest.main()
-#    suite = unittest.TestLoader().loadTestsFromTestCase(BasicTest)
-#    unittest.TextTestRunner(verbosity=2).run(suite)
+if __name__ == '__main__':
+    # unittest.main()
+    suite = unittest.TestLoader().loadTestsFromTestCase(BasicTest)
+    unittest.TextTestRunner(verbosity=2).run(suite)
