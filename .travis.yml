@@ -11,6 +11,7 @@ before_install:
   - "sudo apt-get update"
   - "sudo apt-get install libatlas-base-dev gfortran"
   - "sudo apt-get install python-dev"
+  - "sudo apt-get install python-numpy python-scipy"
   - "sudo pip install cvxpy"
 # command to install dependencies
 install: "sudo python2.7 setup.py install"
