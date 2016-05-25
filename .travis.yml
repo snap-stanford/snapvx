@@ -7,6 +7,7 @@ before_install:
   - "tar zxf snap-1.2-2.4-centos6.5-x64-py2.6.tar.gz"
   - "cd snap-1.2-2.4-centos6.5-x64-py2.6/"
   - "python setup.py install --user"
+  - "pip install cvxpy"
 # command to install dependencies
 install: "python2.7 setup.py install --user"
 # command to run tests
