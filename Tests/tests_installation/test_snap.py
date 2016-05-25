@@ -4,17 +4,12 @@ sys.path.append('..')
 # Base class for unit tests.
 from base_test import BaseTest
 import unittest
-import numpy as np
-import os.path
-from snapvx import *
-from cvxpy import *
 
-class BasicTest(BaseTest):
-
-    DATA_DIR = 'TestData'
+class SnapTest(BaseTest):
 
     def test_snap(self):
-        #Test that snap.py installed correctly.
+        """Test that snap.py installed correctly.
+        """
         import snap
         num_nodes = 20
 
@@ -44,40 +39,8 @@ class BasicTest(BaseTest):
                 if n1.GetId() == n2.GetId():
                     self.assertEqual(n1.GetOutDeg() + n1.GetInDeg(),
                                      n2.GetOutDeg() + n2.GetInDeg())
-    def test_cvxpy(self):
-        """ Test that CVXPY installed correctly.
-        """
-        ## Test taken from test_advanded() [sic] from cvxpy/tests/test_examples.py
-        ## of the CVXPY repository.
 
-        # Solving a problem with different solvers.
-        x = Variable(2)
-        obj = Minimize(x[0] + norm(x, 1))
-        constraints = [x >= 2]
-        prob = Problem(obj, constraints)
-
-        # Solve with ECOS.
-        prob.solve(solver=ECOS)
-        print("optimal value with ECOS:", prob.value)
-        self.assertAlmostEqual(prob.value, 6)
-
-        # Solve with ECOS_BB.
-        prob.solve(solver=ECOS_BB)
-        print("optimal value with ECOS_BB:", prob.value)
-        self.assertAlmostEqual(prob.value, 6)
-
-        # Solve with CVXOPT.
-        prob.solve(solver=CVXOPT)
-        print("optimal value with CVXOPT:", prob.value)
-        self.assertAlmostEqual(prob.value, 6)
-
-        # Solve with SCS.
-        prob.solve(solver=SCS)
-        print("optimal value with SCS:", prob.value)
-        self.assertAlmostEqual(prob.value, 6, places=2)
-
-
-#if __name__ == '__main__':
+if __name__ == '__main__':
     # unittest.main()
-#    suite = unittest.TestLoader().loadTestsFromTestCase(BasicTest)
-#    unittest.TextTestRunner(verbosity=2).run(suite)
+    suite = unittest.TestLoader().loadTestsFromTestCase(SnapTest)
+    unittest.TextTestRunner(verbosity=2).run(suite)

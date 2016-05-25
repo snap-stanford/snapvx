@@ -3,6 +3,12 @@ python:
   - "2.7"
 virtualenv:
   system_site_packages: true
+env:
+    global:
+        - LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libgfortran.so.3
+    matrix:
+        - DISTRIB="conda" PYTHON_VERSION="2.7" INSTALL_ATLAS="true" NUMPY_VERSION="1.10.4" SCIPY_VERSION="0.17.0" COVERAGE="true" INSTALL_GLPK="true"
+        - DISTRIB="conda" PYTHON_VERSION="2.7" INSTALL_ATLAS="true" NUMPY_VERSION="1.10.4" SCIPY_VERSION="0.17.0"COVERAGE="true" INSTALL_GLPK="false"
 sudo: required
 before_install:
   - "wget https://snap.stanford.edu/snappy/release/snap-1.2-2.4-centos6.5-x64-py2.6.tar.gz"
@@ -10,12 +16,9 @@ before_install:
   - "cd snap-1.2-2.4-centos6.5-x64-py2.6/"
   - "sudo python setup.py install"
   - "cd .."
-  - "sudo apt-get update"
-  - "sudo apt-get install libatlas-base-dev gfortran"
-  - "sudo apt-get install python-dev"
-  - "sudo apt-get install python-numpy python-scipy"
   - "sudo pip install cvxpy"
+
 # command to install dependencies
 install: "sudo python setup.py install"
 # command to run tests
-script: nosetests
+script:  bash Tests/test_script.sh

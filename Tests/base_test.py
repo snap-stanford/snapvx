@@ -1,7 +1,9 @@
 import unittest
 import numpy as np
+import os
 
 class BaseTest(unittest.TestCase):
+    DATA_DIR = os.getcwd()+'Tests/'+'TestData'
     # AssertAlmostEqual for lists.
     def assertItemsAlmostEqual(self, a, b, places=5):
         a = self.mat_to_list(a)

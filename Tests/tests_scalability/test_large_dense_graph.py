@@ -9,19 +9,17 @@ from cvxpy import *
 import time
 import unittest
 
-class ScalabilityTest(BaseTest):
+class LargeDenseGraphTest(BaseTest):
 
-    DATA_DIR = 'TestData'
-
-    def test_sparse_graph(self):
+    def test_large_dense_graph(self):
         """ Test solution time on sparse graph
         """    
-        var_size = 5
+        var_size = 1000
         np.random.seed(1)
         num_nodes = 1000
-        num_edges = 3000
+        node_deg = 10
         # Create new graph
-        snapGraph = GenRndGnm(PUNGraph, num_nodes, num_edges)
+        snapGraph = GenRndDegK(num_nodes, node_deg)
         gvx = TGraphVX(snapGraph)
 
         #For each node, add an objective (using random data)
@@ -37,12 +35,11 @@ class ScalabilityTest(BaseTest):
         start = time.time()
         gvx.Solve()
         end = time.time()
-        print "Solved a problem with",num_nodes,"nodes,",num_edges,"edges and",var_size,"unknowns in",end-start
+        print "Solved a problem with",num_nodes,"nodes,",node_deg,"node degree and",var_size*num_nodes,"unknowns in",end-start
 
 
 
-
-#if __name__ == '__main__':
+if __name__ == '__main__':
 #    # unittest.main()
-#    suite = unittest.TestLoader().loadTestsFromTestCase(ScalabilityTest)
-#    unittest.TextTestRunner(verbosity=2).run(suite)
+    suite = unittest.TestLoader().loadTestsFromTestCase(LargeDenseGraphTest)
+    unittest.TextTestRunner(verbosity=2).run(suite)
