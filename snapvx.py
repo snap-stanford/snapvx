@@ -757,7 +757,7 @@ class TGraphVX(TUNGraph):
                     # Singleton object = assume it is the objective
                     self.SetEdgeObjective(src_id, dst_id, ret)
             return
-        infile = open(Filename, 'r')
+        infile = open(Filename)
         if EdgeIDs == None and (SrcIdCol == None or DstIdCol == None):
             stop = False
             for ei in self.Edges():
