@@ -1,5 +1,7 @@
-language=python
+language: python
 python:
-    -"2.7"
-install:"python2.7 setup.py"
-script:nosetests
+  - "2.7"
+# command to install dependencies
+install: "python2.7 setup.py install --user"
+# command to run tests
+script: nosetests
