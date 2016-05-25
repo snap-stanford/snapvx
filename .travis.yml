@@ -6,7 +6,7 @@ before_install:
   - "wget https://snap.stanford.edu/snappy/release/snap-1.2-2.4-centos6.5-x64-py2.6.tar.gz"
   - "tar zxf snap-1.2-2.4-centos6.5-x64-py2.6.tar.gz"
   - "cd snap-1.2-2.4-centos6.5-x64-py2.6/"
-  - "sudo python2.7 setup.py install"
+  - "sudo python setup.py install"
   - "cd .."
   - "sudo apt-get update"
   - "sudo apt-get install libatlas-base-dev gfortran"
@@ -14,6 +14,6 @@ before_install:
   - "sudo apt-get install python-numpy python-scipy"
   - "sudo pip install cvxpy"
 # command to install dependencies
-install: "sudo python2.7 setup.py install"
+install: "sudo python setup.py install"
 # command to run tests
 script: nosetests
