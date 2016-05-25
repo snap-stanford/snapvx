@@ -17,7 +17,7 @@ class LargeUnknownsTest(BaseTest):
         np.random.seed(1)
         num_nodes = 500
         num_edges = 1000
-        var_size = 1000
+        var_size = 100
         snapGraph = GenRndGnm(PUNGraph, num_nodes, num_edges)
         gvx = TGraphVX(snapGraph)
 

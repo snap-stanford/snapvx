@@ -14,7 +14,7 @@ class SmallDenseGraphTest(BaseTest):
     def test_small_dense_graph(self):
         """ Test solution time on small dense graph
         """    
-        var_size = 1000
+        var_size = 100
         np.random.seed(1)
         num_nodes = 100
         node_deg = 10

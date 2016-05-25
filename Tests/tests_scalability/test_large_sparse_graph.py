@@ -16,7 +16,7 @@ class LargeSparseGraphTest(BaseTest):
     def test_large_sparse_graph(self):
         """ Test solution time on sparse graph
         """    
-        var_size = 1000
+        var_size = 100
         np.random.seed(1)
         num_nodes = 1000
         node_deg = 3
@@ -37,7 +37,7 @@ class LargeSparseGraphTest(BaseTest):
         start = time.time()
         gvx.Solve()
         end = time.time()
-        print "Solved a problem with",num_nodes,"nodes,",num_edges,"edges and",var_size*num_nodes,"unknowns in",end-start
+        print "Solved a problem with",num_nodes,"nodes,",node_deg,"node degree and",var_size*num_nodes,"unknowns in",end-start
 
 
 

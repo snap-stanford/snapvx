@@ -14,7 +14,7 @@ class LargeDenseGraphTest(BaseTest):
     def test_large_dense_graph(self):
         """ Test solution time on sparse graph
         """    
-        var_size = 1000
+        var_size = 100
         np.random.seed(1)
         num_nodes = 1000
         node_deg = 10
