@@ -12,7 +12,7 @@ import unittest
 class LargeDenseGraphTest(BaseTest):
 
     def test_large_dense_graph(self):
-        """ Test solution time on sparse graph
+        """ Test solution time on large dense graph
         """    
         var_size = 100
         np.random.seed(1)
