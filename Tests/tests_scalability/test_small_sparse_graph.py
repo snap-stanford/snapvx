@@ -14,7 +14,7 @@ class SmallSparseGraphTest(BaseTest):
     DATA_DIR = 'TestData'
 
     def test_small_sparse_graph(self):
-        """ Test solution time on sparse graph
+        """ Test solution time on small sparse graph
         """    
         var_size = 100
         np.random.seed(1)

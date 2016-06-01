@@ -11,6 +11,8 @@ import unittest
 class ClusteringTest(BaseTest):
 
     def test_clustering(self):
+        """ Test ADMM with clustering
+        """
         def laplace_reg(src, dst, data):
             obj = square(src['x'] - dst['x'])
             return (obj, [])
