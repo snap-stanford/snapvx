@@ -41,5 +41,8 @@ import snapvx
 ```
 in the Python file. See the included `Examples/` directory for use cases and syntax.
 
+#### DEVELOPMENT
+Please consult the developer doc for ways to contribute code, documentation, test cases and general improvments to snapvx
+
 ### CONTACT
 Please file bug reports at [github.com/snap-stanford/snapvx](https://github.com/snap-stanford/snapvx). For any other questions, comments, or concerns, please contact [David Hallac](http://www.stanford.edu/~hallac/).
