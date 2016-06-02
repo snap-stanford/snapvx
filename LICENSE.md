@@ -2,7 +2,7 @@ SnapVX is licensed under the BSD Open-Source license.
 
 > Copyright (c) 2009-2016: Jure Leskovec, David Hallac, and other contributors:
 >
-> https://github.com/JuliaLang/julia/contributors
+> https://github.com/snap-stanford/snapvx/graphs/contributors
 >
 > Permission is hereby granted, free of charge, to any person obtaining
 > a copy of this software and associated documentation files (the
@@ -14,6 +14,7 @@ SnapVX is licensed under the BSD Open-Source license.
 >
 > The above copyright notice and this permission notice shall be
 > included in all copies or substantial portions of the Software.
+>
 >THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
 >THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT,
 >INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
