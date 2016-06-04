@@ -1,18 +1,16 @@
-snapvx
+SnapVX
 =====================
 
-**The description and documentation of SnapVX are at [snap.stanford.edu/snapvx](http://snap.stanford.edu/snapvx/).**
+**For more information, please visit the SnapVX website, [snap.stanford.edu/snapvx](http://snap.stanford.edu/snapvx/).**
 
 #### IMPORTANT LINKS
 - Source code repo: https://github.com/snap-stanford/snapvx
-- HTML User Documentation: http://snap.stanford.edu/snapvx/doc/index.html
-- PDF Developer documentation: https://github.com/snap-stanford/snapvx/developerDoc/Documentation.pdf
+- HTML user documentation: http://snap.stanford.edu/snapvx/doc/index.html
+- Developer documentation: https://github.com/snap-stanford/snapvx/developerDoc/Documentation.pdf
 - Issue Tracker: https://github.com/snap-stanford/snapvx/issues
 
 #### DEPENDENCIES
-snapvx is tested to work under Python 2.7.
-
-The required dependencies to build the software are NumPy >= 1.6.1, Scipy >= 0.9, CVXPY >= 0.3.9, Snap.py >= 1.2 and a working C/C++ compiler
+The required dependencies to build SnapVX are NumPy >= 1.6.1, Scipy >= 0.9, CVXPY >= 0.3.9, and Snap.py >= 1.2.
 
 #### INSTALLATION
 1. Download the latest release [here](http://snap.stanford.edu/snapvx/release/).
@@ -23,7 +21,7 @@ The required dependencies to build the software are NumPy >= 1.6.1, Scipy >= 0.9
 3. Run `setup.py install` from inside the top-level directory.
 
         cd snapvx-0.3
-        sudo python setup.py install
+        python setup.py install
 
 4. Test the installation. The included unit tests will test basic functionality to ensure that SnapVX and its dependencies are working correctly.
 
@@ -41,7 +39,7 @@ import snapvx
 in the Python file. See the included `Examples/` directory for use cases and syntax.
 
 #### DEVELOPMENT
-Please consult the developer doc for ways to contribute code, documentation, test cases and general improvments to snapvx
+Please consult the developer doc for ways to contribute code, documentation, test cases and general improvments to SnapVX
 
 ### CONTACT
-Please file bug reports at [github.com/snap-stanford/snapvx](https://github.com/snap-stanford/snapvx). For any other questions, comments, or concerns, please contact [David Hallac](http://www.stanford.edu/~hallac/).
+Please file bug reports at [github.com/snap-stanford/snapvx](https://github.com/snap-stanford/snapvx). We also encourage you to sign up for the [SnapVX mailing list](http://snap.stanford.edu/snapvx/) to stay up-tp-date with the newest features and releases. For any other questions, comments, or concerns, please contact [David Hallac](http://www.stanford.edu/~hallac/).
