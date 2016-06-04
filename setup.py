@@ -1,6 +1,6 @@
 from distutils.core import setup
 setup(name='snapvx',
-    version='0.2',
+    version='0.3',
     #data_files=[('Examples', [
     #    'Examples/BulkLoadData.csv',
     #    'Examples/BulkLoadEdges.edges',
