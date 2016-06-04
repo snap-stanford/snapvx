@@ -22,9 +22,9 @@ S = semidefinite(numFeatures+1,name='S')
 gvx.AddNode(0,Objective=trace(S*empCov)-log_det(S))
 gvx.AddNode(1)
 
-#add an edge between them with the regularisation penalty
+#add an edge between them with the regularisation penalty on the non diagonal terms
 gvx.AddEdge(0, 1,Objective=lamb*norm(S,1))
 
 #Solve the problem
-gvx.Solve(Verbose=True,Rho=1.0,UseADMM=True,MaxIters=20)
+gvx.Solve(Verbose=True,Rho=1.0,UseADMM=True,MaxIters=200)
 gvx.PrintSolution()
