@@ -1,7 +1,7 @@
 SnapVX
 =====================
 
-**For more information, please visit the SnapVX website, [snap.stanford.edu/snapvx](http://snap.stanford.edu/snapvx/).**
+**For more information, please visit the SnapVX website at [snap.stanford.edu/snapvx](http://snap.stanford.edu/snapvx/).**
 
 #### IMPORTANT LINKS
 - Source code repo: https://github.com/snap-stanford/snapvx
@@ -39,7 +39,7 @@ import snapvx
 in the Python file. See the included `Examples/` directory for use cases and syntax.
 
 #### DEVELOPMENT
-Please consult the developer doc for ways to contribute code, documentation, test cases and general improvments to SnapVX
+Please consult the developer doc for ways to contribute code, documentation, test cases and general improvments to SnapVX.
 
 ### CONTACT
-Please file bug reports at [github.com/snap-stanford/snapvx](https://github.com/snap-stanford/snapvx). We also encourage you to sign up for the [SnapVX mailing list](http://snap.stanford.edu/snapvx/) to stay up-tp-date with the newest features and releases. For any other questions, comments, or concerns, please contact [David Hallac](http://www.stanford.edu/~hallac/).
+Please file bug reports at [github.com/snap-stanford/snapvx](https://github.com/snap-stanford/snapvx). We also encourage you to sign up for the [SnapVX mailing list](http://snap.stanford.edu/snapvx/#documentation) to stay up-tp-date with the newest features and releases. For any other questions, comments, or concerns, please contact [David Hallac](http://www.stanford.edu/~hallac/).
