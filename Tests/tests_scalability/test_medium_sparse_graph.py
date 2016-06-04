@@ -9,15 +9,17 @@ from cvxpy import *
 import time
 import unittest
 
-class SmallDenseGraphTest(BaseTest):
+class MediumSparseGraphTest(BaseTest):
 
-    def test_small_dense_graph(self):
-        """ Test solution time on small dense graph
+    DATA_DIR = 'TestData'
+
+    def test_medium_sparse_graph(self):
+        """ Test solution time on medium sparse graph
         """    
         var_size = 100
         np.random.seed(1)
-        num_nodes = 10
-        node_deg = 5
+        num_nodes = 100
+        node_deg = 3
         # Create new graph
         snapGraph = GenRndDegK(num_nodes, node_deg)
         gvx = TGraphVX(snapGraph)
@@ -41,5 +43,5 @@ class SmallDenseGraphTest(BaseTest):
 
 if __name__ == '__main__':
 #    # unittest.main()
-    suite = unittest.TestLoader().loadTestsFromTestCase(SmallDenseGraphTest)
+    suite = unittest.TestLoader().loadTestsFromTestCase(MediumSparseGraphTest)
     unittest.TextTestRunner(verbosity=2).run(suite)

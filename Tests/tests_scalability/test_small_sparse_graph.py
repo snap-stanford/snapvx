@@ -18,7 +18,7 @@ class SmallSparseGraphTest(BaseTest):
         """    
         var_size = 100
         np.random.seed(1)
-        num_nodes = 100
+        num_nodes = 10
         node_deg = 3
         # Create new graph
         snapGraph = GenRndDegK(num_nodes, node_deg)
