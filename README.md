@@ -8,7 +8,6 @@ snapvx
 - HTML User Documentation: http://snap.stanford.edu/snapvx/doc/index.html
 - PDF Developer documentation: https://github.com/snap-stanford/snapvx/developerDoc/Documentation.pdf
 - Issue Tracker: https://github.com/snap-stanford/snapvx/issues
-- Mailing List:
 
 #### DEPENDENCIES
 snapvx is tested to work under Python 2.7.
