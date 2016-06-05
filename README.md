@@ -26,8 +26,8 @@ The required dependencies to build SnapVX are NumPy >= 1.6.1, Scipy >= 0.9, CVXP
 4. Test the installation. The included unit tests will test basic functionality to ensure that SnapVX and its dependencies are working correctly.
 
         cd Tests
-        chmod u+x test_script.sh
-        ./test_script.sh
+        chmod u+x test_basic.sh
+        ./test_basic.sh
 
 Note: to run SnapVX locally, without installing it system-wide, just run setup.py with the --user flag.
 
