@@ -10,6 +10,7 @@ import os
 from snapvx import *
 from cvxpy import *
 
+"""Suite of tests to check if the solution returned by SnapVX is within very close limits of the actual solution"""
 class HighPrecTest(BaseTest):
 
     DATA_DIR = '../TestData'
@@ -35,13 +36,18 @@ class HighPrecTest(BaseTest):
         # Define an objective, constraints using CVXPY syntax
         gvx.AddEdge(1, 2, Objective=square(norm(x1 - x2)), Constraints=[])
 
-        gvx.Solve(UseADMM=True,EpsAbs=0.00005,EpsRel=0.00005) #High precision
+        #Solve the optimisation problem by setting the error bounds very small
+        gvx.Solve(UseADMM=True,EpsAbs=0.00005,EpsRel=0.00005)
+
+        #Check if the solution is within 3 decimal places of the actual solution
         self.assertAlmostEqual(x1.value, -0.5, places=3)
         self.assertAlmostEqual(x2.value, -1, places=3)
 
     def test_bulk_loading_with_ADMM_high_prec(self):
-        """ Test bulk loading with high precision.
+        """ Test whether bulk loading functionality also returns solutions with high precision.
         """
+
+        #define the node objective function
         def objective_node_func(d):
             x = Variable(name='x')
             nid = int(d[0])
@@ -52,6 +58,7 @@ class HighPrecTest(BaseTest):
                 # Node 2 has objective |x + 3|, from basic_bulk_load.csv
                 return abs(x + int(d[1]))
 
+        #define the edge objective function
         def objective_edge_func(src, dst, data):
             # The edge has objective ||x1 - x2||^2
             return square(norm(src['x'] - dst['x']))
@@ -62,12 +69,15 @@ class HighPrecTest(BaseTest):
                               objective_node_func)
         gvx.AddEdgeObjectives(objective_edge_func)
 
-        gvx.Solve(UseADMM=True,EpsAbs=0.00005,EpsRel=0.00005) #High precision
+        #Solve the optimisation problem by setting the error bounds very small
+        gvx.Solve(UseADMM=True,EpsAbs=0.00005,EpsRel=0.00005)
+        
+        #Check if the solution is within 3 decimal places of the actual solution
         self.assertAlmostEqual(gvx.GetNodeValue(1, 'x'), -0.5, places=3)
         self.assertAlmostEqual(gvx.GetNodeValue(2, 'x'), -1, places=3)
 
     def test_multi_vars_with_ADMM_high_prec(self):
-        """ Test multiple variables with ADMM with high precision.
+        """ Test whether high precision solutions are returned when multiple variables are introduced
         """
         # Node 1: objective = x1^2 + |y1 + 4|
         # Node 2: objective = (x2 + 3)^2 + |y2 + 6|
@@ -93,12 +103,14 @@ class HighPrecTest(BaseTest):
         # In particular, the 'y' variables at each node are different depending
         # on the Solve() method.
 
-        gvx.Solve(UseADMM=True,EpsAbs=0.00005,EpsRel=0.00005) # Solve the problem
+        #Solve the optimisation problem by setting the error bounds very small
+        gvx.Solve(UseADMM=True,EpsAbs=0.00005,EpsRel=0.00005)
+
+        #Check if the solution is within 3 decimal places of the actual solution
         self.assertAlmostEqual(gvx.GetTotalProblemValue(), 3.3125, places=3)
-        self.assertAlmostEqual(gvx.GetNodeValue(1, 'x'), -0.25, places=1)
+        self.assertAlmostEqual(gvx.GetNodeValue(1, 'x'), -0.25, places=3)
         self.assertAlmostEqual(gvx.GetNodeValue(2, 'x'), -2.75, places=3)
 
 if __name__ == '__main__':
-#    # unittest.main()
     suite = unittest.TestLoader().loadTestsFromTestCase(HighPrecTest)
     unittest.TextTestRunner(verbosity=2).run(suite)

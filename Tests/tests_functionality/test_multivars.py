@@ -10,6 +10,7 @@ import os
 from snapvx import *
 from cvxpy import *
 
+"""Suite of tests to check if snapvx works when the problem has multiple variables"""
 class MultiVarsTest(BaseTest):
 
     DATA_DIR = '../TestData'
@@ -42,12 +43,11 @@ class MultiVarsTest(BaseTest):
         # on the Solve() method.
 
         gvx.Solve(UseADMM=True) # Solve the problem
-        #print gvx.PrintSolution() # Print entire solution on a node-by-node basis
-        self.assertAlmostEqual(gvx.GetTotalProblemValue(), 3.3125, places=2)
+        
+        #check whether the solution is within 1 decimal place of the actual solution
+        self.assertAlmostEqual(gvx.GetTotalProblemValue(), 3.3125, places=1)
         self.assertAlmostEqual(gvx.GetNodeValue(1, 'x'), -0.25, places=1)
-        # self.assertAlmostEqual(gvx.GetNodeValue(1, 'y'), -5.5625, places=3)
         self.assertAlmostEqual(gvx.GetNodeValue(2, 'x'), -2.75, places=1)
-        # self.assertAlmostEqual(gvx.GetNodeValue(2, 'y'), -4.4375, places=3)
 
 
     def test_multi_vars_without_ADMM(self):
@@ -78,12 +78,11 @@ class MultiVarsTest(BaseTest):
         # on the Solve() method.
 
         gvx.Solve(UseADMM=False) # Solve the problem with ADMM
-        # print gvx.PrintSolution() # Print entire solution on a node-by-node basis
-        self.assertAlmostEqual(gvx.GetTotalProblemValue(), 3.3125, places=2)
-        self.assertAlmostEqual(gvx.GetNodeValue(1, 'x'), -0.25, places=3)
-        # self.assertAlmostEqual(gvx.GetNodeValue(1, 'y'), -4.37, places=1)
-        self.assertAlmostEqual(gvx.GetNodeValue(2, 'x'), -2.75, places=3)
-        # self.assertAlmostEqual(gvx.GetNodeValue(2, 'y'), -3.23, places=1)
+        
+        #check whether the solution is within 1 decimal place of the actual solution
+        self.assertAlmostEqual(gvx.GetTotalProblemValue(), 3.3125, places=1)
+        self.assertAlmostEqual(gvx.GetNodeValue(1, 'x'), -0.25, places=1)
+        self.assertAlmostEqual(gvx.GetNodeValue(2, 'x'), -2.75, places=1)
 
 
 

@@ -28,6 +28,5 @@ class NoSharedVarsTest(BaseTest):
             # If an exception is not thrown, then the test fails.
             self.assertFalse(True, 'Two nodes currently share a variable')
 if __name__ == '__main__':
-#    # unittest.main()
     suite = unittest.TestLoader().loadTestsFromTestCase(NoSharedVarsTest)
     unittest.TextTestRunner(verbosity=2).run(suite)
