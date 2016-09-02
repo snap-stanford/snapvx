@@ -20,7 +20,8 @@ class MediumSparseGraphTest(BaseTest):
         np.random.seed(1)
         num_nodes = 100
         node_deg = 3
-        # Create new graph
+
+        # Create new random graph with 100 nodes each with degree 3
         snapGraph = GenRndDegK(num_nodes, node_deg)
         gvx = TGraphVX(snapGraph)
 

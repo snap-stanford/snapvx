@@ -20,7 +20,8 @@ class SmallSparseGraphTest(BaseTest):
         np.random.seed(1)
         num_nodes = 10
         node_deg = 3
-        # Create new graph
+        
+        # Create a random graph with 10 nodes, each with degree 3
         snapGraph = GenRndDegK(num_nodes, node_deg)
         gvx = TGraphVX(snapGraph)
 
@@ -42,6 +43,5 @@ class SmallSparseGraphTest(BaseTest):
 
 
 if __name__ == '__main__':
-#    # unittest.main()
     suite = unittest.TestLoader().loadTestsFromTestCase(SmallSparseGraphTest)
     unittest.TextTestRunner(verbosity=2).run(suite)
