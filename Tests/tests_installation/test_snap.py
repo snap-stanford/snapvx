@@ -41,6 +41,5 @@ class SnapTest(BaseTest):
                                      n2.GetOutDeg() + n2.GetInDeg())
 
 if __name__ == '__main__':
-    # unittest.main()
     suite = unittest.TestLoader().loadTestsFromTestCase(SnapTest)
     unittest.TextTestRunner(verbosity=2).run(suite)

@@ -36,6 +36,8 @@ class BasicSolverTest(BaseTest):
         gvx.AddEdge(1, 2, Objective=square(norm(x1 - x2)), Constraints=[])
 
         gvx.Solve(UseADMM=True) # Solve the problem with ADMM
+        
+        #check if the solution is within 1 decimal place of the actual solution
         self.assertAlmostEqual(x1.value, -0.5, places=1)
         self.assertAlmostEqual(x2.value, -1, places=1)
 
@@ -62,11 +64,12 @@ class BasicSolverTest(BaseTest):
         gvx.AddEdge(1, 2, Objective=square(norm(x1 - x2)), Constraints=[])
 
         gvx.Solve(UseADMM=False) # Solve the problem without ADMM
+        
+        #check if the solution is within 1 decimal place of the actual solution
         self.assertAlmostEqual(x1.value, -0.5, places=3)
         self.assertAlmostEqual(x2.value, -1, places=3)
 
 
 if __name__ == '__main__':
-#    # unittest.main()
     suite = unittest.TestLoader().loadTestsFromTestCase(BasicSolverTest)
     unittest.TextTestRunner(verbosity=2).run(suite)
