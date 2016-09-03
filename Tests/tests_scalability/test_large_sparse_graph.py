@@ -20,14 +20,17 @@ class LargeSparseGraphTest(BaseTest):
         np.random.seed(1)
         num_nodes = 1000
         node_deg = 3
-        # Create new graph
+        
+        #Generate a random graph with 1000 nodes, each with degree 3
         snapGraph = GenRndDegK(num_nodes, node_deg)
         gvx = TGraphVX(snapGraph)
 
         #For each node, add an objective (using random data)
         for i in range(num_nodes):
+            #associate a 100 dimensional variable with each node
             x = Variable(var_size,name='x') #Each node has its own variable named 'x'
             a = numpy.random.randn(var_size)
+            #set the node objective to ||x-a||^2
             gvx.SetNodeObjective(i, square(norm(x-a)))                                            
         def netLasso(src, dst, data):
             return (norm(src['x'] - dst['x'],2), [])
@@ -39,9 +42,6 @@ class LargeSparseGraphTest(BaseTest):
         end = time.time()
         print "Solved a problem with",num_nodes,"nodes,",node_deg,"node degree and",var_size*num_nodes,"unknowns in",end-start
 
-
-
 if __name__ == '__main__':
-#    # unittest.main()
     suite = unittest.TestLoader().loadTestsFromTestCase(LargeSparseGraphTest)
     unittest.TextTestRunner(verbosity=2).run(suite)

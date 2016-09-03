@@ -20,13 +20,17 @@ class SmallUnknownsTest(BaseTest):
         num_nodes = 500
         num_edges = 1000
         var_size = 10
+
+        #generate a random graph with 500 nodes and 1000 edges
         snapGraph = GenRndGnm(PUNGraph, num_nodes, num_edges)
         gvx = TGraphVX(snapGraph)
 
-        #For each node, add an objective (using random data)
+        #For each node, add an objective (using random data) 
         for i in range(num_nodes):
+            #associate a 100 dimensional variable with each node
             x = Variable(var_size,name='x') #Each node has its own variable named 'x'
             a = numpy.random.randn(var_size)
+            #set the node objective to ||x-a||^2
             gvx.SetNodeObjective(i, square(norm(x-a)))                                            
         def netLasso(src, dst, data):
             return (norm(src['x'] - dst['x'],2), [])
@@ -38,9 +42,6 @@ class SmallUnknownsTest(BaseTest):
         end = time.time()
         print "Solved a problem with",num_nodes,"nodes,",num_edges,"edges and",var_size*num_nodes,"unknowns in",end-start
 
-
-
 if __name__ == '__main__':
-#    # unittest.main()
     suite = unittest.TestLoader().loadTestsFromTestCase(SmallUnknownsTest)
     unittest.TextTestRunner(verbosity=2).run(suite)

@@ -27,8 +27,10 @@ class MediumSparseGraphTest(BaseTest):
 
         #For each node, add an objective (using random data)
         for i in range(num_nodes):
+            #associate a 100 dimensional variable with each node
             x = Variable(var_size,name='x') #Each node has its own variable named 'x'
             a = numpy.random.randn(var_size)
+            #set the node objective to ||x-a||^2
             gvx.SetNodeObjective(i, square(norm(x-a)))                                            
         def netLasso(src, dst, data):
             return (norm(src['x'] - dst['x'],2), [])
