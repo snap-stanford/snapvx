@@ -1,12 +1,6 @@
 from distutils.core import setup
 setup(name='snapvx',
-    version='0.3',
-    #data_files=[('Examples', [
-    #    'Examples/BulkLoadData.csv',
-    #    'Examples/BulkLoadEdges.edges',
-    #    'Examples/BulkLoading.py',
-    #    'Examples/HelloWorld.py',
-    #    'Examples/LaplacianRegularization.py'])],
+    version='0.4',
     py_modules=['snapvx']
     )
 
