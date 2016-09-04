@@ -9,6 +9,8 @@ from cvxpy import *
 import time
 import unittest
 
+
+"""Obtain snapvx solution time estimate on dense graphs of small size"""
 class SmallDenseGraphTest(BaseTest):
 
     def test_small_dense_graph(self):

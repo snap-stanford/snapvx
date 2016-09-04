@@ -7,6 +7,8 @@ import unittest
 import numpy as np
 from cvxpy import *
 
+""" Test that CVXPY installed correctly.
+"""
 class CVXPYTest(BaseTest):
 
     def test_cvxpy(self):

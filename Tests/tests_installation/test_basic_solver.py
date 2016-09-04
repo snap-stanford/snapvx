@@ -10,6 +10,7 @@ import os
 from snapvx import *
 from cvxpy import *
 
+"""Suite of tests to check if the basic functionality of snapvx is behaving correctly"""
 class BasicSolverTest(BaseTest):
 
     DATA_DIR = os.getcwd()+'/Tests/TestData'
