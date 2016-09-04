@@ -5,6 +5,7 @@ sys.path.append('..')
 from base_test import BaseTest
 import unittest
 
+"""Test that snap.py installed correctly"""
 class SnapTest(BaseTest):
 
     def test_snap(self):

@@ -9,6 +9,7 @@ from cvxpy import *
 import time
 import unittest
 
+"""Test to obtain the time estimate of snapvx runs on large sparse graphs"""
 class LargeSparseGraphTest(BaseTest):
 
     DATA_DIR = 'TestData'
@@ -38,6 +39,7 @@ class LargeSparseGraphTest(BaseTest):
         #add lasso penalty for all edges
         gvx.AddEdgeObjectives(netLasso)
         start = time.time()
+        #solve the optimisation problem
         gvx.Solve()
         end = time.time()
         print "Solved a problem with",num_nodes,"nodes,",node_deg,"node degree and",var_size*num_nodes,"unknowns in",end-start

@@ -9,6 +9,7 @@ from cvxpy import *
 import time
 import unittest
 
+"""Obtain snapvx solution time estimate on sparse graphs of small size"""
 class SmallSparseGraphTest(BaseTest):
 
     DATA_DIR = 'TestData'

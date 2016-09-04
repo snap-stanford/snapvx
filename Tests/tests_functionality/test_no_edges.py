@@ -8,6 +8,7 @@ from snapvx import *
 from cvxpy import *
 import unittest
 
+"""Suite of tests to check the correctness of solver in graphs which contain only nodes"""
 class NoEdgesTest(BaseTest):
 
     def test_no_edges(self):

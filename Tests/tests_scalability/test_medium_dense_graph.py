@@ -9,10 +9,11 @@ from cvxpy import *
 import time
 import unittest
 
+"""Obtain snapvx solution time estimate on graphs with not very large number of nodes, but high connectivity"""
 class MediumDenseGraphTest(BaseTest):
 
     def test_medium_dense_graph(self):
-        """ Test solution time on very medium dense graph
+        """ Test solution time on dense graph with relatively medium number of nodes
         """    
         var_size = 100
         np.random.seed(1)

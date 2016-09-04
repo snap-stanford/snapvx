@@ -8,6 +8,8 @@ from snapvx import *
 from cvxpy import *
 import unittest
 
+"""Test to ensure that invalid edges are not created
+"""
 class IllegalEdgeTest(BaseTest):
 
     def test_illegal_edge(self):

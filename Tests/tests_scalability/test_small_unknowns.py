@@ -9,6 +9,8 @@ from cvxpy import *
 import time
 import unittest
 
+
+"""Test to obtain the time estimate of snapvx runs on graphs with small number of unknowns"""
 class SmallUnknownsTest(BaseTest):
 
     DATA_DIR = 'TestData'
