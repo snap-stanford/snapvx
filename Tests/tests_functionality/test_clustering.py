@@ -8,6 +8,9 @@ from snapvx import *
 from cvxpy import *
 import unittest
 
+"""Clustering allows the original graph to be converted to a supergraph, with adjacent nodes clustered to form supernodes. Suite of tests
+to check if this functionality behaves properly
+"""
 class ClusteringTest(BaseTest):
 
     def test_clustering(self):

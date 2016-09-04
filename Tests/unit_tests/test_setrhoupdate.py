@@ -26,6 +26,7 @@ class SetRhoUpdateTest(BaseTest):
 
         #set rho update function to return a constant rho at every iteration
         SetRhoUpdateFunc(Func = lambda rho, res_p, thr_p, res_d, thr_d: rho)
+        
         #solve the optimisation problem
         gvx.Solve(UseADMM=True)
 
@@ -48,6 +49,7 @@ class SetRhoUpdateTest(BaseTest):
 
         #set rho update function to return a constant rho at every iteration
         SetRhoUpdateFunc(Func = lambda rho, res_p, thr_p, res_d, thr_d: 0.999 * rho)
+        
         #solve the optimisation problem
         gvx.Solve(UseADMM=True)
 

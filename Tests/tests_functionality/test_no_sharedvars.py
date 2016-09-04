@@ -8,6 +8,7 @@ from snapvx import *
 from cvxpy import *
 import unittest
 
+"""Test to ensure that two nodes do not share a variable"""
 class NoSharedVarsTest(BaseTest):
 
     def test_shared_vars_unallowed(self):

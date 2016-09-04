@@ -9,6 +9,8 @@ from cvxpy import *
 import time
 import unittest
 
+
+"""Test to obtain the time estimate of snapvx runs on graphs with large number of unknowns"""
 class LargeUnknownsTest(BaseTest):
 
     def test_large_unknowns(self):
@@ -36,6 +38,7 @@ class LargeUnknownsTest(BaseTest):
         #add lasso penalty for all edges
         gvx.AddEdgeObjectives(netLasso)
         start = time.time()
+        #solve the optmisation problem
         gvx.Solve()
         end = time.time()
         print "Solved a problem with",num_nodes,"nodes,",num_edges,"edges and",var_size*num_nodes,"unknowns in",end-start
@@ -43,6 +46,5 @@ class LargeUnknownsTest(BaseTest):
 
 
 if __name__ == '__main__':
-#    # unittest.main()
     suite = unittest.TestLoader().loadTestsFromTestCase(LargeUnknownsTest)
     unittest.TextTestRunner(verbosity=2).run(suite)
