@@ -6,7 +6,7 @@ SnapVX
 #### IMPORTANT LINKS
 - Source code repo: https://github.com/snap-stanford/snapvx
 - HTML user documentation: http://snap.stanford.edu/snapvx/doc/index.html
-- Developer documentation: https://github.com/snap-stanford/snapvx/developerDoc/Documentation.pdf
+- Developer documentation: http://snap.stanford.edu/snapvx/developer_doc.pdf
 - Issue Tracker: https://github.com/snap-stanford/snapvx/issues
 
 #### DEPENDENCIES
@@ -16,11 +16,11 @@ The required dependencies to build SnapVX are NumPy >= 1.6.1, Scipy >= 0.9, CVXP
 1. Download the latest release [here](http://snap.stanford.edu/snapvx/release/).
 2. Uncompress the `snapvx-*.tar.gz` file.
 
-        tar zxvf snapvx-0.3.tar.gz
+        tar zxvf snapvx-0.4.tar.gz
 
 3. Run `setup.py install` from inside the top-level directory.
 
-        cd snapvx-0.3
+        cd snapvx-0.4
         python setup.py install
 
 4. Test the installation. The included unit tests will test basic functionality to ensure that SnapVX and its dependencies are working correctly.
