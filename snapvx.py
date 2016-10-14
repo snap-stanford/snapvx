@@ -984,7 +984,7 @@ def writeObjective(sharedarr, index, objective, variables):
                 writeValue(sharedarr, index + offset, value, var.size[0])
                 break
 
-# x-update for ADMM for one node
+# Helper function to solve the x-update for ADMM for each node
 def ADMM_x(entry):
     global rho
     variables = entry[X_VARS]
@@ -1017,7 +1017,7 @@ def ADMM_x(entry):
     writeObjective(node_vals, entry[X_IND], objective, variables)
     return None
 
-# z-update for ADMM for one edge
+# Helper function to solve the z-update for ADMM for each edge
 def ADMM_z(entry):
     global rho
     objective = entry[Z_OBJ]
@@ -1048,7 +1048,7 @@ def ADMM_z(entry):
     writeObjective(edge_z_vals, entry[Z_ZJIIND], objective, variables_j)
     return None
 
-# u-update for ADMM for one edge
+# Helper function to solve the u-update for ADMM for each edge
 def ADMM_u(entry):
     global rho
     size_i = entry[Z_ILEN]
