@@ -35,3 +35,14 @@ Tests/tests_scalability/test_medium_sparse_graph.py
 Tests/tests_scalability/test_small_dense_graph.py
 Tests/tests_scalability/test_small_sparse_graph.py
 Tests/tests_scalability/test_small_unknowns.py
+Tests/unit_tests/test_addedge.py
+Tests/unit_tests/test_addedgeobjectives.py
+Tests/unit_tests/test_addnode.py
+Tests/unit_tests/test_addnodeobjectives.py
+Tests/unit_tests/test_getnodevalue.py
+Tests/unit_tests/test_gettotalproblemvalue.py
+Tests/unit_tests/test_setedgeconstraints.py
+Tests/unit_tests/test_setedgeobjective.py
+Tests/unit_tests/test_setnodeconstraint.py
+Tests/unit_tests/test_setnodeobjective.py
+Tests/unit_tests/test_setrhoupdate.py
