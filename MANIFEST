@@ -46,3 +46,9 @@ Tests/unit_tests/test_setedgeobjective.py
 Tests/unit_tests/test_setnodeconstraint.py
 Tests/unit_tests/test_setnodeobjective.py
 Tests/unit_tests/test_setrhoupdate.py
+developerDoc/Documentation.pdf
+doc/Makefile
+doc/guide.txt
+doc/source/conf.py
+doc/source/index.rst
+doc/source/reference/index-ref.rst
