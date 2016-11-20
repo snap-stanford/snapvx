@@ -3,6 +3,8 @@
 for dir in tests_installation tests_functionality tests_scalability unit_tests;
 do
     cd $dir
-    python2.7 -m unittest discover -v
+    for i in `ls`;do
+        python2.7 $i;
+    done
     cd ..
 done
