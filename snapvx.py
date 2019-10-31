@@ -32,7 +32,6 @@ from scipy.sparse import lil_matrix
 import sys
 import time
 import builtins
-import numpy as np
 
 # File format: One edge per line, written as "srcID dstID"
 # Commented lines that start with '#' are ignored
@@ -496,7 +495,7 @@ class TGraphVX(TUNGraph):
         r = Ax - z
         s = rho * A_tr.dot(z - z_old)
         # Primal and dual thresholds. Add .0001 to prevent the case of 0.
-        e_pri = math.sqrt(p) * e_abs + e_rel * np.maximum(norm(Ax), norm(z)) + .0001
+        e_pri = math.sqrt(p) * e_abs + e_rel * numpy.maximum(norm(Ax), norm(z)) + .0001
         e_dual = math.sqrt(n) * e_abs + e_rel * norm(rho * A_tr.dot(u)) + .0001
         # Primal and dual residuals
         res_pri = norm(r)
