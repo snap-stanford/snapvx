@@ -21,8 +21,11 @@
 # OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+from __future__ import print_function
+
 from snap import *
 from cvxpy import *
+
 
 import math
 import multiprocessing
@@ -31,7 +34,7 @@ import numpy as np
 from scipy.sparse import lil_matrix
 import sys
 import time
-import __builtin__
+import builtins
 
 # File format: One edge per line, written as "srcID dstID"
 # Commented lines that start with '#' are ignored
@@ -111,7 +114,7 @@ class TGraphVX(TUNGraph):
     # functionality to Nodes() iterator of PUNGraph in Snap.py.
     def Nodes(self):
         ni = TUNGraph.BegNI(self)
-        for i in xrange(TUNGraph.GetNodes(self)):
+        for i in range(TUNGraph.GetNodes(self)):
             yield ni
             ni.Next()
 
@@ -119,7 +122,7 @@ class TGraphVX(TUNGraph):
     # functionality to Edges() iterator of PUNGraph in Snap.py.
     def Edges(self):
         ei = TUNGraph.BegEI(self)
-        for i in xrange(TUNGraph.GetEdges(self)):
+        for i in range(TUNGraph.GetEdges(self)):
             yield ei
             ei.Next()
 
@@ -137,7 +140,7 @@ class TGraphVX(TUNGraph):
 
         # Use ADMM if the appropriate parameter is specified and if there
         # are edges in the graph.
-        #if __builtin__.len(SuperNodes) > 0:
+        #if builtins.len(SuperNodes) > 0:
         if UseClustering and ClusterSize > 0:
             SuperNodes = self.__ClusterGraph(ClusterSize)
             self.__SolveClusterADMM(M,UseADMM,SuperNodes, NumProcessors, Rho, MaxIters,\
@@ -148,7 +151,7 @@ class TGraphVX(TUNGraph):
                              Verbose)
             return
         if Verbose:
-            print 'Serial ADMM'
+            print ('Serial ADMM')
         objective = 0
         constraints = []
         # Add all node objectives and constraints
@@ -179,7 +182,8 @@ class TGraphVX(TUNGraph):
             variables = self.node_variables[nid]
             value = None
             for (varID, varName, var, offset) in variables:
-                if var.size[0] == 1:
+                temp = var.size[0] if hasattr(var.size,'__len__') else var.size
+                if temp == 1:
                     val = np.array([var.value])
                 else:
                     val = np.array(var.value).reshape(-1,)
@@ -196,7 +200,7 @@ class TGraphVX(TUNGraph):
         supergraph = TGraphVX()
         nidToSuperidMap = {}
         edgeToClusterTupMap = {}
-        for snid in xrange(__builtin__.len(superNodes)):
+        for snid in range(builtins.len(superNodes)):
             for nid in superNodes[snid]:
                 nidToSuperidMap[nid] = snid
         """collect the entities for the supergraph. a supernode is a subgraph. a superedge
@@ -235,7 +239,8 @@ class TGraphVX(TUNGraph):
             supernid = nidToSuperidMap[nid]
             value = None
             for (varID, varName, var, offset) in self.node_variables[nid]:
-                if var.size[0] == 1:
+                temp = var.size[0] if hasattr(var.size,'__len__') else var.size
+                if temp == 1:
                     val = np.array([var.value])
                 else:
                     val = np.array(var.value).reshape(-1,)
@@ -258,7 +263,7 @@ class TGraphVX(TUNGraph):
                 else:
                     superNodeOffset = sum([superNodeVariables[supernid][k][2].size[0]* \
                                            superNodeVariables[supernid][k][2].size[1]\
-                                           for k in xrange(__builtin__.len(superNodeVariables[supernid])) ])
+                                           for k in range(builtins.len(superNodeVariables[supernid])) ])
                     superNodeVariables[supernid] += [(varId, superVarName, var, superNodeOffset)]
                     superNodeValues[supernid] = np.concatenate((superNodeValues[supernid],value))
                 
@@ -313,7 +318,7 @@ class TGraphVX(TUNGraph):
             num_processors = numProcessors
         rho = rho_param
         if verbose:
-            print 'Distributed ADMM (%d processors)' % num_processors
+            print ('Distributed ADMM (%d processors)' % num_processors)
 
         # Organize information for each node in helper node_info structure
         node_info = {}
@@ -326,14 +331,14 @@ class TGraphVX(TUNGraph):
             obj = self.node_objectives[nid]
             variables = self.node_variables[nid]
             con = self.node_constraints[nid]
-            neighbors = [ni.GetNbrNId(j) for j in xrange(deg)]
+            neighbors = [ni.GetNbrNId(j) for j in range(deg)]
             # Node's constraints include those imposed by edges
             for neighborId in neighbors:
                 etup = self.__GetEdgeTup(nid, neighborId)
                 econ = self.edge_constraints[etup]
                 con += econ
             # Calculate sum of dimensions of all Variables for this node
-            size = sum([var.size[0] for (varID, varName, var, offset) in variables])
+            size = sum([var.size[0] if hasattr(var.size,'__len__') else var.size for (varID, varName, var, offset) in variables])
             # Nearly complete information package for this node
             node_info[nid] = (nid, obj, variables, con, x_length, size, deg,\
                 neighbors)
@@ -379,11 +384,11 @@ class TGraphVX(TUNGraph):
             info_edge = edge_info[etup]
             info_i = node_info[etup[0]]
             info_j = node_info[etup[1]]
-            for offset in xrange(info_i[X_LEN]):
+            for offset in range(info_i[X_LEN]):
                 row = info_edge[Z_ZIJIND] + offset
                 col = info_i[X_IND] + offset
                 A[row, col] = 1
-            for offset in xrange(info_j[X_LEN]):
+            for offset in range(info_j[X_LEN]):
                 row = info_edge[Z_ZJIIND] + offset
                 col = info_j[X_IND] + offset
                 A[row, col] = 1
@@ -392,12 +397,12 @@ class TGraphVX(TUNGraph):
         # Create final node_list structure by adding on information for
         # node neighbors
         node_list = []
-        for nid, info in node_info.iteritems():
+        for nid, info in node_info.items():
             entry = [nid, info[X_OBJ], info[X_VARS], info[X_CON], info[X_IND],\
                 info[X_LEN], info[X_DEG]]
             # Append information about z- and u-value indices for each
             # node neighbor
-            for i in xrange(info[X_DEG]):
+            for i in range(info[X_DEG]):
                 neighborId = info[X_NEIGHBORS][i]
                 indices = (Z_ZIJIND, Z_UIJIND) if nid < neighborId else\
                     (Z_ZJIIND, Z_UJIIND)
@@ -437,7 +442,7 @@ class TGraphVX(TUNGraph):
             num_iterations += 1
             
             if verbose:
-                print 'Iteration %d' % num_iterations
+                print ('Iteration %d' % num_iterations)
             
             if os.name != 'nt':
                 pool.map(ADMM_x, node_list)
@@ -501,10 +506,10 @@ class TGraphVX(TUNGraph):
         res_dual = norm(s)
         if verbose:
             # Debugging information to print convergence criteria values
-            print '  r:', res_pri, A.shape[1]
-            print '  e_pri:', e_pri
-            print '  s:', res_dual, A.shape[0]
-            print '  e_dual:', e_dual
+            print ('  r:', res_pri, A.shape[1])
+            print ('  e_pri:', e_pri)
+            print ('  s:', res_dual, A.shape[0])
+            print ('  e_dual:', e_dual)
         stop = (res_pri <= e_pri) and (res_dual <= e_dual)
         return (stop, res_pri, e_pri, res_dual, e_dual)
 
@@ -515,7 +520,8 @@ class TGraphVX(TUNGraph):
             if varName == Name:
                 offset = offset
                 value = self.node_values[NId]
-                return value[offset:(offset + var.size[0])]
+                temp = var.size[0] if hasattr(var.size,'__len__') else var.size
+                return value[offset:(offset + temp)]
         return None
 
     # Prints value of all node variables to console or file, if given
@@ -548,13 +554,13 @@ class TGraphVX(TUNGraph):
         # Check that the Variables of the new Objective are not currently
         # in other Objectives.
         new_variables = set(Objective.variables())
-        if __builtin__.len(self.all_variables.intersection(new_variables)) != 0:
+        if builtins.len(self.all_variables.intersection(new_variables)) != 0:
             raise Exception('Objective at NId %d shares a variable.' % NId)
         self.all_variables = self.all_variables | new_variables
 
     # Helper method to get CVXPY Variables out of a CVXPY Objective
-    def __ExtractVariableList(self, Objective):
-        l = [(var.name(), var) for var in Objective.variables()]
+    def __ExtractVariableList(self, variables):
+        l = [(var.name(), var) for var in variables]
         # Sort in ascending order by name
         l.sort(key=lambda t: t[0])
         l2 = []
@@ -562,7 +568,8 @@ class TGraphVX(TUNGraph):
         for (varName, var) in l:
             # Add tuples of the form (id, name, object, offset)
             l2.append((var.id, varName, var, offset))
-            offset += var.size[0]
+            temp = var.size[0] if hasattr(var.size,'__len__') else var.size
+            offset += temp
         return l2
 
     # Adds a Node to the TUNGraph and stores the corresponding CVX information.
@@ -570,15 +577,19 @@ class TGraphVX(TUNGraph):
             Constraints=__default_constraints):
         self.__UpdateAllVariables(NId, Objective)
         self.node_objectives[NId] = Objective
-        self.node_variables[NId] = self.__ExtractVariableList(Objective)
+        self.node_variables[NId] = self.__ExtractVariableList(Objective.variables())
         self.node_constraints[NId] = Constraints
         return TUNGraph.AddNode(self, NId)
+    
+    def SetNodeVariables(self,NId,variables):
+        self.__VerifyNId(NId)
+        self.node_variables[NId] = self.__ExtractVariableList(variables)
 
     def SetNodeObjective(self, NId, Objective):
         self.__VerifyNId(NId)
         self.__UpdateAllVariables(NId, Objective)
         self.node_objectives[NId] = Objective
-        self.node_variables[NId] = self.__ExtractVariableList(Objective)
+        self.node_variables[NId] = self.__ExtractVariableList(Objective.variables())
 
     def GetNodeObjective(self, NId):
         self.__VerifyNId(NId)
@@ -837,8 +848,8 @@ class TGraphVX(TUNGraph):
                 #size of the supernode variables gets larger than clusterSize
                 while True:
                     if isOdd:
-                        if __builtin__.len(oddLevel) > 0:
-                            while __builtin__.len(oddLevel) > 0:
+                        if builtins.len(oddLevel) > 0:
+                            while builtins.len(oddLevel) > 0:
                                 topId = oddLevel.pop(0)
                                 node = TUNGraph.GetNI(self,topId)
                                 varSize = sum([variable[2].size[0]* \
@@ -848,27 +859,27 @@ class TGraphVX(TUNGraph):
                                     superNode.append(topId)
                                     superNodeSize = varSize + superNodeSize
                                 else:
-                                    if __builtin__.len(superNode) > 0:
+                                    if builtins.len(superNode) > 0:
                                         superNodes.append(superNode)
                                     superNodeSize = varSize
                                     superNode = [topId]
                                 neighbors = [node.GetNbrNId(j) \
-                                             for j in xrange(node.GetDeg())]
+                                             for j in range(node.GetDeg())]
                                 for nbrId in neighbors:
                                     if not visitedNode[nbrId]:
                                         evenLevel.append(nbrId)
                                         visitedNode[nbrId] = True
                             isOdd = False
                             #sort the nodes according to their variable size
-                            if __builtin__.len(evenLevel) > 0:
+                            if builtins.len(evenLevel) > 0:
                                 evenLevel.sort(key=lambda nid : sum([variable[2].size[0]* \
                                                variable[2].size[1] for variable \
                                                in self.node_variables[nid]]))
                         else:
                             break
                     else:
-                        if __builtin__.len(evenLevel) > 0:
-                            while __builtin__.len(evenLevel) > 0:
+                        if builtins.len(evenLevel) > 0:
+                            while builtins.len(evenLevel) > 0:
                                 topId = evenLevel.pop(0)
                                 node = TUNGraph.GetNI(self,topId)
                                 varSize = sum([variable[2].size[0]* \
@@ -878,19 +889,19 @@ class TGraphVX(TUNGraph):
                                     superNode.append(topId)
                                     superNodeSize = varSize + superNodeSize
                                 else:
-                                    if __builtin__.len(superNode) > 0:
+                                    if builtins.len(superNode) > 0:
                                         superNodes.append(superNode)
                                     superNodeSize = varSize
                                     superNode = [topId]
                                 neighbors = [node.GetNbrNId(j) \
-                                             for j in xrange(node.GetDeg())]
+                                             for j in range(node.GetDeg())]
                                 for nbrId in neighbors:
                                     if not visitedNode[nbrId]:
                                         oddLevel.append(nbrId)
                                         visitedNode[nbrId] = True
                             isOdd = True
                             #sort the nodes according to their variable size
-                            if __builtin__.len(oddLevel) > 0:
+                            if builtins.len(oddLevel) > 0:
                                 oddLevel.sort(key=lambda nid : sum([variable[2].size[0]* \
                                                variable[2].size[1] for variable \
                                                in self.node_variables[nid]]))
@@ -990,15 +1001,16 @@ def ADMM_x(entry):
     variables = entry[X_VARS]
     norms = 0
     # Iterate through all neighbors of the node
-    for i in xrange(entry[X_DEG]):
+    for i in range(entry[X_DEG]):
         z_index = X_NEIGHBORS + (2 * i)
         u_index = z_index + 1
         zi = entry[z_index]
         ui = entry[u_index]
         # Add norm for Variables corresponding to the node
         for (varID, varName, var, offset) in variables:
-            z = getValue(edge_z_vals, zi + offset, var.size[0])
-            u = getValue(edge_u_vals, ui + offset, var.size[0])
+            temp = var.size[0] if hasattr(var.size,'__len__') else var.size
+            z = getValue(edge_z_vals, zi + offset, temp)
+            u = getValue(edge_u_vals, ui + offset, temp)
             norms += square(norm(var - z + u))
 
     objective = entry[X_OBJ] + (rho / 2) * norms
@@ -1010,7 +1022,7 @@ def ADMM_x(entry):
     except SolverError:
         problem.solve(solver=SCS)
     if problem.status in [INFEASIBLE_INACCURATE, UNBOUNDED_INACCURATE]:
-        print "ECOS error: using SCS for x update"
+        print ("ECOS error: using SCS for x update")
         problem.solve(solver=SCS)
 
     # Write back result of x-update
@@ -1024,13 +1036,15 @@ def ADMM_z(entry):
     norms = 0
     variables_i = entry[Z_IVARS]
     for (varID, varName, var, offset) in variables_i:
-        x_i = getValue(node_vals, entry[Z_XIIND] + offset, var.size[0])
-        u_ij = getValue(edge_u_vals, entry[Z_UIJIND] + offset, var.size[0])
+        temp = var.size[0] if hasattr(var.size,'__len__') else var.size
+        x_i = getValue(node_vals, entry[Z_XIIND] + offset, temp)
+        u_ij = getValue(edge_u_vals, entry[Z_UIJIND] + offset, temp)
         norms += square(norm(x_i - var + u_ij))
     variables_j = entry[Z_JVARS]
     for (varID, varName, var, offset) in variables_j:
-        x_j = getValue(node_vals, entry[Z_XJIND] + offset, var.size[0])
-        u_ji = getValue(edge_u_vals, entry[Z_UJIIND] + offset, var.size[0])
+        temp = var.size[0] if hasattr(var.size,'__len__') else var.size
+        x_j = getValue(node_vals, entry[Z_XJIND] + offset, temp)
+        u_ji = getValue(edge_u_vals, entry[Z_UJIIND] + offset, temp)
         norms += square(norm(x_j - var + u_ji))
     objective = m_func(objective + (rho / 2) * norms)
     problem = Problem(objective, constraints)
@@ -1039,7 +1053,7 @@ def ADMM_z(entry):
     except SolverError:
         problem.solve(solver=SCS)
     if problem.status in [INFEASIBLE_INACCURATE, UNBOUNDED_INACCURATE]:
-        print "ECOS error: using SCS for z update"
+        print ("ECOS error: using SCS for z update")
         problem.solve(solver=SCS)
 
     # Write back result of z-update. Must write back for i- and j-node

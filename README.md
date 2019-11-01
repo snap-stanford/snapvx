@@ -10,7 +10,8 @@ SnapVX
 - Issue Tracker: https://github.com/snap-stanford/snapvx/issues
 
 #### DEPENDENCIES
-The required dependencies to build SnapVX are NumPy >= 1.6.1, Scipy >= 0.9, CVXPY >= 0.3.9, and Snap.py >= 1.2.
+The required dependencies to build SnapVX are python 3, NumPy >= 1.6.1, Scipy >= 0.9, CVXPY >= 1.25.0, and Snap.py >= 1.2.
+The github release only supports python 3, however snapvx-0.5 [here](http://snap.stanford.edu/snapvx/release/) is an older release supporting python 2.
 
 #### INSTALLATION
 1. Download the latest release [here](http://snap.stanford.edu/snapvx/release/).
