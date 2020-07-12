@@ -499,7 +499,7 @@ class TGraphVX(TUNGraph):
         r = Ax - z
         s = rho * A_tr.dot(z - z_old)
         # Primal and dual thresholds. Add .0001 to prevent the case of 0.
-        e_pri = np.sqrt(A.shape[1]) * e_abs + e_rel * max(norm(Ax), norm(z)) + .0001
+        e_pri = np.sqrt(A.shape[1]) * e_abs + e_rel * builtins.max(norm(Ax), norm(z)) + .0001
         e_dual = np.sqrt(A.shape[0]) * e_abs + e_rel * norm(rho * A_tr.dot(u)) + .0001
         # Primal and dual residuals
         res_pri = norm(r)
